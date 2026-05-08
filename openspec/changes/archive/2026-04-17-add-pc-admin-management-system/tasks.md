@@ -1,0 +1,373 @@
+# 实现计划：cy-admin PC 管理系统
+
+## 概述
+
+基于 React + TypeScript + Vite + Ant Design + Zustand + React Query 构建的美甲美睫店铺 PC 管理系统。后端使用 CloudBase 云函数（Node.js 18，CommonJS），通过 HTTP API 调用。
+
+## 任务
+
+- [x] 1. 项目初始化与基础配置
+  - [x] 1.1 使用 Vite 创建 React + TypeScript 项目，安装 Ant Design 5.x、Zustand、@tanstack/react-query、axios、react-router-dom v6、@ant-design/charts、vitest、fast-check 等依赖
+    - 配置 `vite.config.ts`（路径别名 `@/`、代理）
+    - 配置 `tsconfig.json`（strict 模式、路径映射）
+    - 配置 ESLint + Prettier（单引号、2 空格缩进、有分号）
+    - _需求：全局_
+  - [x] 1.2 创建 `src/types/` 目录，定义所有核心 TypeScript 接口
+    - `auth.ts`：AdminAccount、LoginRequest、LoginResponse
+    - `member.ts`：Member、MemberCard、CardRechargeRecord
+    - `technician.ts`：Technician、TechnicianServiceSlot、TechnicianCommissionConfig
+    - `service.ts`：Service
+    - `appointment.ts`：Appointment
+    - `finance.ts`：FinanceSummary、RevenueTrend、TechnicianPerformance
+    - `common.ts`：ApiResponse、PageResult、OperationLog
+    - _需求：全局_
+  - [x] 1.3 创建 `src/constants/` 目录，定义业务常量
+    - `api.ts`：云函数名称常量
+    - `business.ts`：会员等级阈值、积分规则、默认提成比例（30%）、账号锁定阈值（5次/30分钟）
+    - _需求：1.4、5.7、7.2_
+
+- [x] 2. 认证模块
+  - [x] 2.1 实现 `src/stores/authStore.ts`（Zustand）
+    - 存储 adminInfo、token（sessionStorage）、isAuthenticated
+    - 实现 login、logout、clearAuth action
+    - 无操作 2 小时自动注销（setTimeout + 用户交互重置计时器）
+    - _需求：1.1、1.2、11.2_
+  - [x] 2.2 实现 `src/services/http.ts`（axios 实例 + 拦截器）
+    - 请求拦截器：从 sessionStorage 读取 token，注入 `Authorization: Bearer {token}` 头
+    - 响应拦截器：统一处理 401（清除 token，跳转登录页，提示"登录已过期，请重新登录"）
+    - 响应拦截器：统一处理业务错误，不暴露技术细节
+    - _需求：1.8、11.1_
+  - [x] 2.3 实现 `src/utils/jwt.ts` 和 `src/utils/validation.ts`
+    - `jwt.ts`：JWT payload 解析工具函数（不验证签名，仅解析）
+    - `validation.ts`：validateAdminCredentials（用户名 4–20 字符，密码 8–32 字符）、validatePhone（1[3-9]\d{9}）、validateMemberInfo、validateServiceItem、validateDiscountLevel、validateCommissionRate
+    - _需求：1.5、1.7、2.6、4.2、7.3、10.2_
+  - [x] 2.4 为 validation.ts 编写属性测试（auth.property.test.ts）
+    - **Property 3：管理员账号字段验证正确性**
+    - **Validates: 需求 1.5、1.7**
+  - [x] 2.5 实现 `src/services/auth.ts`（认证相关 API 封装）
+    - adminLogin、adminLogout、adminChangePassword、getAdminList、createAdmin、updateAdminStatus、getLoginLogs
+    - _需求：1.1、1.2、1.6、1.9_
+  - [x] 2.6 实现 `src/pages/login/LoginPage.tsx`（登录页）
+    - 用户名 + 密码表单，密码框 `type="password"`，禁用自动补全
+    - 提交中禁用按钮，防止重复提交
+    - 错误提示（"用户名或密码错误"，不暴露具体原因）
+    - _需求：1.1、1.2、1.3_
+  - [x] 2.7 实现 `src/components/layout/AuthGuard.tsx`（路由权限守卫）
+    - 未登录跳转 `/login`，已登录访问 `/login` 跳转首页
+    - _需求：1.1、11.1_
+  - [x] 2.8 为认证模块编写属性测试（auth.property.test.ts）
+    - **Property 20：未授权请求被拒绝**
+    - **Validates: 需求 11.1**
+
+- [x] 3. 布局与导航
+  - [x] 3.1 实现 `src/stores/uiStore.ts`（Zustand）
+    - 存储侧边栏折叠状态、当前选中菜单项
+    - _需求：全局_
+  - [x] 3.2 实现 `src/components/layout/AdminLayout.tsx`（主布局）
+    - Ant Design Layout：侧边栏（Sider）+ 顶部导航（Header）+ 内容区（Content）
+    - 侧边栏菜单：首页、管理员账号、会员管理、技师管理、服务项目、预约订单、财务统计、提成核算、会员关系、会员卡管理、操作日志
+    - 顶部导航：当前管理员名称、退出登录按钮
+    - 侧边栏支持折叠
+    - _需求：全局_
+  - [x] 3.3 实现 `src/App.tsx`（路由配置）
+    - 配置所有页面路由，使用 React.lazy + Suspense 懒加载
+    - 路由级别代码分割
+    - 用 AuthGuard 包裹需要登录的路由
+    - _需求：全局_
+  - [x] 3.4 实现 `src/pages/dashboard/DashboardPage.tsx`（首页）
+    - 今日待服务预约列表
+    - 当日生日会员待办提醒
+    - _需求：8.2_
+
+- [x] 4. 工具函数实现
+  - [x] 4.1 实现 `src/utils/format.ts`（格式化工具）
+    - maskPhone：手机号脱敏（仅显示后 4 位，如 `***7890`）
+    - formatAmount：金额格式化（分→元，保留 2 位小数）
+    - formatDate：日期格式化（YYYY-MM-DD）
+    - _需求：2.1、11.3_
+  - [x] 4.2 为 maskPhone 编写属性测试（member.property.test.ts）
+    - **Property 5：手机号脱敏正确性**
+    - **Validates: 需求 2.1、11.3**
+  - [x] 4.3 实现 `src/utils/points.ts`（积分计算）
+    - calculatePoints(amountInFen: number): number → Math.floor(amount / 10)
+    - 0 元消费返回 0 积分
+    - _需求：5.7、5.8_
+  - [x] 4.4 为积分计算编写属性测试（appointment.property.test.ts）
+    - **Property 12：积分计算正确性**
+    - **Validates: 需求 5.7、5.8**
+  - [x] 4.5 实现 `src/utils/commission.ts`（提成计算）
+    - calculateCommission(serviceAmount: number, rate: number): number → Math.floor(serviceAmount * rate / 100)
+    - 默认提成比例 30%
+    - _需求：7.2_
+  - [x] 4.6 为提成计算编写属性测试（commission.property.test.ts）
+    - **Property 15：提成计算正确性**
+    - **Property 16：提成比例验证正确性**
+    - **Validates: 需求 7.2、7.3、7.4**
+  - [x] 4.7 实现会员卡折扣计算工具函数 `src/utils/discount.ts`
+    - calculateDiscountedAmount(originalAmount: number, discountRate: number): number → Math.floor(originalAmount * discountRate / 100)
+    - originalAmount <= 0 时返回 0
+    - _需求：10.6_
+  - [x] 4.8 为折扣计算编写属性测试（memberCard.property.test.ts）
+    - **Property 19：会员卡折扣消费计算正确性**
+    - **Validates: 需求 10.6、10.7**
+
+- [x] 5. 检查点 — 确保所有工具函数测试通过
+  - 运行 `npx vitest --run tests/`，确保所有属性测试通过，如有问题请告知。
+
+- [x] 6. 管理员账号管理模块
+  - [x] 6.1 实现 `src/pages/admin/AdminListPage.tsx`（管理员列表）
+    - Ant Design Table 展示管理员列表（用户名、角色、状态、最后登录时间、IP）
+    - 超级管理员可新增管理员（弹窗表单）、禁用/启用账号（二次确认）
+    - 修改自己密码的入口（弹窗表单，需输入当前密码）
+    - 表单验证：用户名 4–20 字符，密码 8–32 字符
+    - _需求：1.1、1.5、1.6、1.7、11.4_
+  - [x] 6.2 实现登录日志查看功能（AdminListPage 内 Tab 或独立子页）
+    - 展示登录时间、IP 地址、操作结果
+    - _需求：1.9_
+  - [x] 6.3 为管理员账号字段验证编写属性测试（auth.property.test.ts）
+    - **Property 3：管理员账号字段验证正确性**（已在任务 2.4 覆盖，此处补充边界用例）
+    - **Validates: 需求 1.5、1.7**
+
+- [x] 7. 会员管理模块
+  - [x] 7.1 实现 `src/services/member.ts`（会员相关 API 封装）
+    - adminGetMemberList、adminGetMemberDetail、adminUpdateMember、adminGetMemberConsumptions、adminGetBirthdayMembers、adminGetDormantMembers、adminSendBirthdayNotification
+    - _需求：2.1–2.11_
+  - [x] 7.2 实现 `src/pages/member/MemberListPage.tsx`（会员列表）
+    - 展示昵称、手机号（脱敏后 4 位）、等级、积分、累计消费、注册时间
+    - 搜索框（昵称/手机号/会员编号，防抖 300ms）
+    - 等级筛选（普通/银卡/金卡/钻石）
+    - 点击行跳转会员详情
+    - _需求：2.1、2.2、2.3_
+  - [x] 7.3 为会员搜索编写属性测试（member.property.test.ts）
+    - **Property 6：会员搜索结果一致性**
+    - **Validates: 需求 2.2**
+  - [x] 7.4 实现 `src/pages/member/MemberDetailPage.tsx`（会员详情）
+    - 基本信息展示（含生日、来源渠道、消费次数、近 30 天到店频次）
+    - 编辑会员信息弹窗（昵称 2–20 字符、手机号格式验证、生日 YYYY-MM-DD）
+    - 消费记录 Tab（日期、服务项目、实际金额、获得积分，倒序）
+    - 持卡信息 Tab（余额、累计充值、折扣等级、充值流水）
+    - 充值操作弹窗（金额 > 0，二次确认）
+    - _需求：2.4、2.5、2.6、2.7、2.9、2.10、2.11_
+  - [x] 7.5 为会员信息编辑验证编写属性测试（member.property.test.ts）
+    - **Property 7：会员信息编辑验证正确性**
+    - **Validates: 需求 2.6**
+  - [x] 7.6 为会员卡充值余额编写属性测试（member.property.test.ts）
+    - **Property 8：会员卡充值余额正确性**
+    - **Validates: 需求 2.10_
+
+- [x] 8. 技师管理模块
+  - [x] 8.1 实现 `src/services/technician.ts`（技师相关 API 封装）
+    - adminGetTechnicianList、adminCreateTechnician、adminUpdateTechnician、adminUpdateTechnicianStatus、adminDeleteTechnician、adminSetTechnicianSchedule、adminSetTechnicianServiceSlots
+    - _需求：3.1–3.9_
+  - [x] 8.2 实现 `src/pages/technician/TechnicianListPage.tsx`（技师列表）
+    - 展示姓名、头像、擅长项目、当前状态、本周排班概览
+    - 新增技师弹窗（姓名 2–10 字符，擅长项目至少 1 项，初始状态）
+    - 修改状态为"休息"时，若有未完成预约则显示数量并要求二次确认
+    - 删除技师：有未完成预约则拒绝并提示数量
+    - _需求：3.1、3.2、3.7、3.8、3.9_
+  - [x] 8.3 为技师删除保护编写属性测试（technician.property.test.ts）
+    - **Property 9：技师删除保护**
+    - **Validates: 需求 3.9**
+  - [x] 8.4 实现 `src/pages/technician/TechnicianDetailPage.tsx`（技师详情）
+    - 编辑技师信息（姓名、头像、擅长项目）
+    - 排班配置：周一至周日，每天可配置上班时间段（开始/结束时间）
+    - 时间段服务项目配置：在指定时间段内关联服务项目（多选）
+    - _需求：3.3、3.4、3.5、3.6_
+
+- [x] 9. 服务项目管理模块
+  - [x] 9.1 实现 `src/services/service.ts`（服务项目相关 API 封装）
+    - adminGetServiceList、adminCreateService、adminUpdateService、adminToggleServiceStatus
+    - _需求：4.1–4.6_
+  - [x] 9.2 实现 `src/pages/service/ServiceListPage.tsx`（服务项目管理）
+    - 展示名称、分类、价格、时长、上架状态
+    - 按分类筛选、按名称搜索（防抖 300ms）
+    - 新增/编辑弹窗（名称 2–30 字符，分类选择，价格 > 0，时长 > 0 整数，描述）
+    - 上下架操作（二次确认）
+    - 价格验证：不合法时提示"价格必须大于 0"
+    - _需求：4.1、4.2、4.3、4.4、4.5、4.6_
+  - [x] 9.3 为服务项目验证编写属性测试（service.property.test.ts）
+    - **Property 10：服务项目验证正确性**
+    - **Validates: 需求 4.2、4.6**
+  - [x] 9.4 为下架服务不影响已有预约编写属性测试（service.property.test.ts）
+    - **Property 11：下架服务不影响已有预约**
+    - **Validates: 需求 4.4**
+
+- [x] 10. 预约订单管理模块
+  - [x] 10.1 实现 `src/services/appointment.ts`（预约相关 API 封装）
+    - adminGetAppointmentList、adminConfirmArrival、adminCompleteService、adminCancelAppointment
+    - _需求：5.1–5.9_
+  - [x] 10.2 实现 `src/pages/appointment/AppointmentListPage.tsx`（预约订单管理）
+    - 默认展示当日预约，包含预约编号、会员信息、服务项目、技师、预约时间、备注、状态
+    - 多条件筛选：日期范围、技师、状态（待服务/服务中/已完成/已取消）、会员关键词（防抖 300ms）
+    - 确认到店：待服务→服务中（二次确认）
+    - 完成服务：输入实际消费金额（允许 0，表示免费），状态→已完成，生成消费记录，计算积分
+    - 取消预约：二次确认，状态→已取消
+    - _需求：5.1–5.9、11.4_
+
+- [x] 11. 财务统计模块
+  - [x] 11.1 实现 `src/services/finance.ts`（财务统计相关 API 封装）
+    - adminGetFinanceSummary（period: 'today' | 'week' | 'month'）、adminGetRevenueTrend、adminGetServiceRevenue、adminGetConsumptionList、adminGetTechnicianPerformance
+    - 日期参数使用 `startDate/endDate`（非 `dateFrom/dateTo`）
+    - _需求：6.1–6.6_
+  - [x] 11.2 实现 `src/components/charts/RevenueLineChart.tsx` 和 `ServicePieChart.tsx`
+    - 使用 @ant-design/charts 实现收入趋势折线图和服务分类收入饼图
+    - _需求：6.2、6.3_
+  - [x] 11.3 实现 `src/pages/finance/FinancePage.tsx`（财务统计）
+    - 今日/本周/本月总收入和完成订单数汇总卡片
+    - 收入趋势折线图（日期范围选择）
+    - 服务分类收入分布饼图
+    - 消费记录列表（日期、会员、服务项目、实际金额、技师，支持日期范围和技师筛选）
+    - 技师业绩统计表（完成订单数、服务总收入）
+    - _需求：6.1–6.6_
+  - [x] 11.4 为财务汇总计算编写属性测试（finance.property.test.ts）
+    - **Property 13：财务汇总计算正确性**
+    - **Property 14：技师业绩统计正确性**
+    - **Validates: 需求 6.1、6.6**
+
+- [x] 12. 提成核算模块
+  - [x] 12.1 实现 `src/services/commission.ts`（提成核算相关 API 封装）
+    - adminGetCommissionReport（startDate/endDate）、adminGetCommissionConfig（返回所有技师配置列表）、adminUpdateCommissionRate
+    - _需求：7.1–7.4_
+  - [x] 12.2 实现 `src/pages/commission/CommissionPage.tsx`（提成核算报表）
+    - 日期范围选择，展示每位技师的完成服务次数、服务总金额、应得提成金额
+    - 自定义提成比例配置（每位技师单独设置，1%–100%，超出范围提示有效范围）
+    - _需求：7.1、7.2、7.3、7.4_
+  - [x] 12.3 为提成核算编写属性测试（commission.property.test.ts）
+    - **Property 15：提成计算正确性**（已在任务 4.6 覆盖，此处补充报表聚合逻辑）
+    - **Property 16：提成比例验证正确性**
+    - **Validates: 需求 7.2、7.3、7.4**
+
+- [x] 13. 检查点 — 确保核心业务模块测试通过
+  - 运行 `npx vitest --run tests/`，确保所有测试通过，如有问题请告知。
+
+- [x] 14. 会员关系维护模块
+  - [x] 14.1 实现会员关系相关 API 调用（复用 `src/services/member.ts`）
+    - adminGetBirthdayMembers（今天/未来 3 天/未来 7 天）
+    - adminGetDormantMembers（超过 60 天未消费，按最后消费时间升序）
+    - adminSendBirthdayNotification（同一自然月内重复发送时返回错误）
+    - _需求：8.1–8.5_
+  - [x] 14.2 在 `DashboardPage.tsx` 中集成生日会员待办
+    - 展示当日生日会员列表，提供"发送祝福"按钮
+    - 重复发送时提示"本月已发送过生日祝福"
+    - _需求：8.2、8.3、8.4_
+  - [x] 14.3 实现 `src/pages/member/MemberRelationPage.tsx`（会员关系维护页面）
+    - 生日会员 Tab（今天/未来 3 天/未来 7 天三个维度）
+    - 沉睡会员列表（超过 60 天未消费，按最后消费时间升序排列）
+    - 展示最近消费时间、手机号脱敏
+    - _需求：8.1、8.5_
+  - [x] 14.4 为沉睡会员筛选编写属性测试（memberRelation.property.test.ts）
+    - **Property 17：沉睡会员筛选正确性**
+    - **Validates: 需求 8.5**
+
+- [x] 15. 会员卡与折扣管理模块
+  - [x] 15.1 实现 `src/services/memberCard.ts`（会员卡相关 API 封装）
+    - adminGetDiscountLevels、adminCreateDiscountLevel、adminUpdateDiscountLevel、adminDeleteDiscountLevel、adminAssignDiscountLevel、adminRechargeCard、adminGetCardRechargeRecords、adminDeductCardBalance
+    - _需求：10.1–10.8_
+  - [x] 15.2 实现 `src/pages/member-card/MemberCardPage.tsx`（会员卡与折扣等级管理）
+    - 折扣等级列表（等级名称、折扣比例、最低充值门槛、关联会员数）
+    - 新增/编辑折扣等级弹窗（名称 2–20 字符，折扣比例 1–99，最低充值门槛 ≥ 0）
+    - 删除折扣等级：有关联会员卡则拒绝并提示关联数量（Popconfirm 二次确认）
+    - _需求：10.1、10.2、10.3、10.4、10.5_
+  - [x] 15.3 为折扣等级验证编写属性测试（memberCard.property.test.ts）
+    - **Property 18：折扣等级验证正确性**
+    - **Validates: 需求 10.2**
+
+- [x] 16A. 登录持久化（Token 从 sessionStorage 迁移至 localStorage）
+  - [x] 16A.1 修改 `src/stores/authStore.ts`
+    - 将 `TOKEN_KEY` 对应的存储从 `sessionStorage` 改为 `localStorage`
+    - 新增 `ADMIN_INFO_KEY = 'admin_info'`，登录时将 adminInfo 序列化存入 `localStorage`
+    - `login` action：同时写入 `localStorage.setItem(TOKEN_KEY, token)` 和 `localStorage.setItem(ADMIN_INFO_KEY, JSON.stringify(adminInfo))`
+    - `logout` / `clearAuth` action：同时清除 `localStorage` 中的 `TOKEN_KEY` 和 `ADMIN_INFO_KEY`
+    - `rehydrate` 方法：从 `localStorage` 读取 token，解析 JWT payload 检查 `exp` 是否过期，未过期则恢复 `adminInfo`、`token`、`isAuthenticated` 并启动无操作计时器，已过期则清除 `localStorage`
+    - _需求：1.10、1.11、1.12、11.2_
+  - [x] 16A.2 修改 `src/services/http.ts`
+    - `buildFunctionPayload` 中将 `sessionStorage.getItem(TOKEN_KEY)` 改为 `localStorage.getItem(TOKEN_KEY)`
+    - `handleUnauthorized` 中确保清除 `localStorage` 中的 token 和用户信息
+    - _需求：1.10、1.12_
+  - [x] 16A.3 在 `src/App.tsx` 或 `src/main.tsx` 中调用 `rehydrate`
+    - 应用启动时调用 `useAuthStore.getState().rehydrate()` 恢复登录状态
+    - 确保在路由渲染前完成 rehydrate，避免已登录用户闪现登录页
+    - _需求：1.11_
+  - [x] 16A.4 更新相关单元测试
+    - 更新 `tests/unit/authStore.test.ts`：验证 login 写入 localStorage、logout 清除 localStorage、rehydrate 从 localStorage 恢复状态、过期 token 被清除
+    - 更新 `tests/unit/http.test.ts`：验证 token 从 localStorage 读取
+    - _需求：1.10、1.11、1.12_
+
+- [x] 17. 云函数实现（Node.js 18，CommonJS）
+  - [x] 17.1 创建云函数公共模块 `cloudfunctions/_shared/`
+    - `auth.js`：JWT 验证中间件（jwt.verify，返回 adminInfo 或抛出 UNAUTHORIZED 错误）
+    - `db.js`：云数据库初始化与常用操作封装
+    - `response.js`：统一响应格式（success/error）
+    - `errors.js`：AdminErrorCode 枚举和自定义错误类
+    - _需求：11.1_
+  - [x] 17.2 实现认证模块云函数
+    - `adminLogin/index.js`：bcrypt 验证密码，失败计数（≥5 次锁定 30 分钟），成功颁发 JWT（含 adminId、role，2 小时过期），记录登录日志
+    - `adminLogout/index.js`：记录退出日志
+    - `adminChangePassword/index.js`：验证当前密码，更新密码哈希
+    - `getAdminList/index.js`、`createAdmin/index.js`、`updateAdminStatus/index.js`（仅超级管理员）
+    - `getLoginLogs/index.js`：分页查询登录日志
+    - _需求：1.1–1.9_
+  - [x] 17.3 为登录云函数编写属性测试（auth-cloudfunction.property.test.ts）
+    - **Property 1：登录成功颁发有效 JWT**（模拟 token 编解码逻辑）
+    - **Property 2：无效凭据不暴露具体失败原因**
+    - **Validates: 需求 1.2、1.3**
+  - [x] 17.4 实现会员模块云函数
+    - `adminGetMemberList/index.js`：支持关键词（昵称/手机号/会员编号模糊匹配）和等级筛选，分页
+    - `adminGetMemberDetail/index.js`：返回会员信息、持卡信息、近期消费记录
+    - `adminUpdateMember/index.js`：验证手机号唯一性，记录操作日志
+    - `adminGetMemberConsumptions/index.js`：分页，倒序
+    - `adminGetBirthdayMembers/index.js`：支持 days=0/3/7
+    - `adminGetDormantMembers/index.js`：60 天未消费，升序，分页
+    - `adminSendBirthdayNotification/index.js`：同一自然月内重复发送返回 BIRTHDAY_NOTIFICATION_ALREADY_SENT
+    - _需求：2.1–2.11_
+  - [x] 17.5 实现技师模块云函数
+    - `adminGetTechnicianList/index.js`、`adminCreateTechnician/index.js`、`adminUpdateTechnician/index.js`
+    - `adminUpdateTechnicianStatus/index.js`：修改为休息时检查未完成预约数量
+    - `adminDeleteTechnician/index.js`：有未完成预约则拒绝，记录操作日志
+    - `adminSetTechnicianSchedule/index.js`、`adminSetTechnicianServiceSlots/index.js`
+    - _需求：3.1–3.9_
+  - [x] 17.6 实现服务项目模块云函数
+    - `adminGetServiceList/index.js`、`adminCreateService/index.js`、`adminUpdateService/index.js`
+    - `adminToggleServiceStatus/index.js`：下架不影响已有预约
+    - _需求：4.1–4.6_
+  - [x] 17.7 实现预约模块云函数
+    - `adminGetAppointmentList/index.js`：多条件筛选，分页
+    - `adminConfirmArrival/index.js`：待服务→服务中，验证状态转换合法性
+    - `adminCompleteService/index.js`：→已完成，生成消费记录，计算积分（Math.floor(amount/10)），生成提成记录，记录操作日志
+    - `adminCancelAppointment/index.js`：→已取消，释放时间段
+    - _需求：5.1–5.9_
+  - [x] 17.8 实现财务模块云函数
+    - `adminGetFinanceSummary/index.js`：今日/本周/本月汇总
+    - `adminGetRevenueTrend/index.js`：按日期聚合收入
+    - `adminGetServiceRevenue/index.js`：按服务分类聚合
+    - `adminGetConsumptionList/index.js`：分页，支持日期范围和技师筛选
+    - `adminGetTechnicianPerformance/index.js`：按技师聚合业绩
+    - _需求：6.1–6.6_
+  - [x] 17.9 实现提成模块云函数
+    - `adminGetCommissionReport/index.js`：按技师聚合提成报表
+    - `adminGetCommissionConfig/index.js`、`adminUpdateCommissionRate/index.js`（验证 1–100 整数，记录操作日志）
+    - _需求：7.1–7.4_
+  - [x] 17.10 实现会员卡模块云函数
+    - `adminGetDiscountLevels/index.js`、`adminCreateDiscountLevel/index.js`、`adminUpdateDiscountLevel/index.js`
+    - `adminDeleteDiscountLevel/index.js`：有关联会员卡则拒绝
+    - `adminAssignDiscountLevel/index.js`、`adminRechargeCard/index.js`（更新余额，生成充值流水，记录操作日志）
+    - `adminGetCardRechargeRecords/index.js`、`adminDeductCardBalance/index.js`（余额不足返回 CARD_BALANCE_INSUFFICIENT）
+    - _需求：10.1–10.8_
+  - [x] 17.11 实现操作日志模块云函数
+    - `adminGetOperationLogs/index.js`：支持按操作人、操作类型、日期范围筛选，分页
+    - _需求：11.5_
+
+- [x] 18. 最终检查点 — 确保所有测试通过
+  - 运行 `npx vitest --run`，确保所有单元测试和属性测试通过，如有问题请告知。
+
+## 备注
+
+- 标注 `*` 的子任务为可选测试任务，可跳过以加快 MVP 交付
+- 每个任务均引用了对应的需求条款，确保可追溯性
+- 属性测试文件位于 `tests/property/`，单元测试文件位于 `tests/unit/`
+- 云函数统一使用 `_shared/` 公共模块，避免重复代码
+- 所有金额字段使用"分"（整数）存储，避免浮点数精度问题
+- 属性测试与设计文档中 Property 1–20 一一对应
+- 财务/提成相关 API 日期参数统一使用 `startDate/endDate`（非 `dateFrom/dateTo`）
+- `adminGetCommissionConfig` 返回所有技师的配置列表，而非单个技师
+- 折扣计算独立于 `src/utils/discount.ts`，不在 `format.ts` 中

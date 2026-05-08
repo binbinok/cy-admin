@@ -1,0 +1,11 @@
+dist
+node_modules
+.kiro
+.agents
+.augment
+.claude
+.codebuddy
+.opencode
+.trae
+.windsurf
+.kilocode

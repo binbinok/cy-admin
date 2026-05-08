@@ -1,0 +1,607 @@
+{
+  "$schema": "https://static.cloudbase.net/cli/cloudbaserc.schema.json",
+  "envId": "cloud1-1g7yz5w766dd366f",
+  "functionRoot": "./cloudfunctions",
+  "functions": [
+    {
+      "name": "adminAssignDiscountLevel",
+      "type": "Event",
+      "handler": "index.main",
+      "timeout": 10,
+      "runtime": "Nodejs18.15",
+      "memorySize": 256,
+      "installDependency": true,
+      "envVariables": {
+        "JWT_SECRET": "lkj123jilkjsad012klz0awfjhlsdfkjasdfijl123kj23joij"
+      }
+    },
+    {
+      "name": "adminBindMemberCard",
+      "type": "Event",
+      "handler": "index.main",
+      "timeout": 10,
+      "runtime": "Nodejs18.15",
+      "memorySize": 256,
+      "installDependency": true,
+      "envVariables": {
+        "JWT_SECRET": "lkj123jilkjsad012klz0awfjhlsdfkjasdfijl123kj23joij"
+      }
+    },
+    {
+      "name": "adminCancelAppointment",
+      "type": "Event",
+      "handler": "index.main",
+      "timeout": 10,
+      "runtime": "Nodejs18.15",
+      "memorySize": 256,
+      "installDependency": true,
+      "envVariables": {
+        "JWT_SECRET": "lkj123jilkjsad012klz0awfjhlsdfkjasdfijl123kj23joij"
+      }
+    },
+    {
+      "name": "adminChangePassword",
+      "type": "Event",
+      "handler": "index.main",
+      "timeout": 10,
+      "runtime": "Nodejs18.15",
+      "memorySize": 256,
+      "installDependency": true,
+      "envVariables": {
+        "JWT_SECRET": "lkj123jilkjsad012klz0awfjhlsdfkjasdfijl123kj23joij"
+      }
+    },
+    {
+      "name": "adminCompleteService",
+      "type": "Event",
+      "handler": "index.main",
+      "timeout": 10,
+      "runtime": "Nodejs18.15",
+      "memorySize": 256,
+      "installDependency": true,
+      "envVariables": {
+        "JWT_SECRET": "lkj123jilkjsad012klz0awfjhlsdfkjasdfijl123kj23joij"
+      }
+    },
+    {
+      "name": "adminConfirmArrival",
+      "type": "Event",
+      "handler": "index.main",
+      "timeout": 10,
+      "runtime": "Nodejs18.15",
+      "memorySize": 256,
+      "installDependency": true,
+      "envVariables": {
+        "JWT_SECRET": "lkj123jilkjsad012klz0awfjhlsdfkjasdfijl123kj23joij"
+      }
+    },
+    {
+      "name": "adminCreateDiscountLevel",
+      "type": "Event",
+      "handler": "index.main",
+      "timeout": 10,
+      "runtime": "Nodejs18.15",
+      "memorySize": 256,
+      "installDependency": true,
+      "envVariables": {
+        "JWT_SECRET": "lkj123jilkjsad012klz0awfjhlsdfkjasdfijl123kj23joij"
+      }
+    },
+    {
+      "name": "adminCreateIncomeRecord",
+      "type": "Event",
+      "handler": "index.main",
+      "timeout": 10,
+      "runtime": "Nodejs18.15",
+      "memorySize": 256,
+      "installDependency": true,
+      "envVariables": {
+        "JWT_SECRET": "lkj123jilkjsad012klz0awfjhlsdfkjasdfijl123kj23joij"
+      }
+    },
+    {
+      "name": "adminCreateService",
+      "type": "Event",
+      "handler": "index.main",
+      "timeout": 10,
+      "runtime": "Nodejs18.15",
+      "memorySize": 256,
+      "installDependency": true,
+      "envVariables": {
+        "JWT_SECRET": "lkj123jilkjsad012klz0awfjhlsdfkjasdfijl123kj23joij"
+      }
+    },
+    {
+      "name": "adminCreateTechnician",
+      "type": "Event",
+      "handler": "index.main",
+      "timeout": 10,
+      "runtime": "Nodejs18.15",
+      "memorySize": 256,
+      "installDependency": true,
+      "envVariables": {
+        "JWT_SECRET": "lkj123jilkjsad012klz0awfjhlsdfkjasdfijl123kj23joij"
+      }
+    },
+    {
+      "name": "adminDeductCardBalance",
+      "type": "Event",
+      "handler": "index.main",
+      "timeout": 10,
+      "runtime": "Nodejs18.15",
+      "memorySize": 256,
+      "installDependency": true,
+      "envVariables": {
+        "JWT_SECRET": "lkj123jilkjsad012klz0awfjhlsdfkjasdfijl123kj23joij"
+      }
+    },
+    {
+      "name": "adminDeleteDiscountLevel",
+      "type": "Event",
+      "handler": "index.main",
+      "timeout": 10,
+      "runtime": "Nodejs18.15",
+      "memorySize": 256,
+      "installDependency": true,
+      "envVariables": {
+        "JWT_SECRET": "lkj123jilkjsad012klz0awfjhlsdfkjasdfijl123kj23joij"
+      }
+    },
+    {
+      "name": "adminDeleteTechnician",
+      "type": "Event",
+      "handler": "index.main",
+      "timeout": 10,
+      "runtime": "Nodejs18.15",
+      "memorySize": 256,
+      "installDependency": true,
+      "envVariables": {
+        "JWT_SECRET": "lkj123jilkjsad012klz0awfjhlsdfkjasdfijl123kj23joij"
+      }
+    },
+    {
+      "name": "adminGetAppointmentList",
+      "type": "Event",
+      "handler": "index.main",
+      "timeout": 10,
+      "runtime": "Nodejs18.15",
+      "memorySize": 256,
+      "installDependency": true,
+      "envVariables": {
+        "JWT_SECRET": "lkj123jilkjsad012klz0awfjhlsdfkjasdfijl123kj23joij"
+      }
+    },
+    {
+      "name": "adminGetBirthdayMembers",
+      "type": "Event",
+      "handler": "index.main",
+      "timeout": 10,
+      "runtime": "Nodejs18.15",
+      "memorySize": 256,
+      "installDependency": true,
+      "envVariables": {
+        "JWT_SECRET": "lkj123jilkjsad012klz0awfjhlsdfkjasdfijl123kj23joij"
+      }
+    },
+    {
+      "name": "adminGetCardRechargeRecords",
+      "type": "Event",
+      "handler": "index.main",
+      "timeout": 10,
+      "runtime": "Nodejs18.15",
+      "memorySize": 256,
+      "installDependency": true,
+      "envVariables": {
+        "JWT_SECRET": "lkj123jilkjsad012klz0awfjhlsdfkjasdfijl123kj23joij"
+      }
+    },
+    {
+      "name": "adminGetCommissionConfig",
+      "type": "Event",
+      "handler": "index.main",
+      "timeout": 10,
+      "runtime": "Nodejs18.15",
+      "memorySize": 256,
+      "installDependency": true,
+      "envVariables": {
+        "JWT_SECRET": "lkj123jilkjsad012klz0awfjhlsdfkjasdfijl123kj23joij"
+      }
+    },
+    {
+      "name": "adminGetCommissionReport",
+      "type": "Event",
+      "handler": "index.main",
+      "timeout": 10,
+      "runtime": "Nodejs18.15",
+      "memorySize": 256,
+      "installDependency": true,
+      "envVariables": {
+        "JWT_SECRET": "lkj123jilkjsad012klz0awfjhlsdfkjasdfijl123kj23joij"
+      }
+    },
+    {
+      "name": "adminGetConsumptionList",
+      "type": "Event",
+      "handler": "index.main",
+      "timeout": 10,
+      "runtime": "Nodejs18.15",
+      "memorySize": 256,
+      "installDependency": true,
+      "envVariables": {
+        "JWT_SECRET": "lkj123jilkjsad012klz0awfjhlsdfkjasdfijl123kj23joij"
+      }
+    },
+    {
+      "name": "adminGetDiscountLevels",
+      "type": "Event",
+      "handler": "index.main",
+      "timeout": 10,
+      "runtime": "Nodejs18.15",
+      "memorySize": 256,
+      "installDependency": true,
+      "envVariables": {
+        "JWT_SECRET": "lkj123jilkjsad012klz0awfjhlsdfkjasdfijl123kj23joij"
+      }
+    },
+    {
+      "name": "adminGetDormantMembers",
+      "type": "Event",
+      "handler": "index.main",
+      "timeout": 10,
+      "runtime": "Nodejs18.15",
+      "memorySize": 256,
+      "installDependency": true,
+      "envVariables": {
+        "JWT_SECRET": "lkj123jilkjsad012klz0awfjhlsdfkjasdfijl123kj23joij"
+      }
+    },
+    {
+      "name": "adminGetFinanceSummary",
+      "type": "Event",
+      "handler": "index.main",
+      "timeout": 10,
+      "runtime": "Nodejs18.15",
+      "memorySize": 256,
+      "installDependency": true,
+      "envVariables": {
+        "JWT_SECRET": "lkj123jilkjsad012klz0awfjhlsdfkjasdfijl123kj23joij"
+      }
+    },
+    {
+      "name": "adminGetMemberConsumptions",
+      "type": "Event",
+      "handler": "index.main",
+      "timeout": 10,
+      "runtime": "Nodejs18.15",
+      "memorySize": 256,
+      "installDependency": true,
+      "envVariables": {
+        "JWT_SECRET": "lkj123jilkjsad012klz0awfjhlsdfkjasdfijl123kj23joij"
+      }
+    },
+    {
+      "name": "adminGetMemberDetail",
+      "type": "Event",
+      "handler": "index.main",
+      "timeout": 10,
+      "runtime": "Nodejs18.15",
+      "memorySize": 256,
+      "installDependency": true,
+      "envVariables": {
+        "JWT_SECRET": "lkj123jilkjsad012klz0awfjhlsdfkjasdfijl123kj23joij"
+      }
+    },
+    {
+      "name": "adminGetMemberList",
+      "type": "Event",
+      "handler": "index.main",
+      "timeout": 10,
+      "runtime": "Nodejs18.15",
+      "memorySize": 256,
+      "installDependency": true,
+      "envVariables": {
+        "JWT_SECRET": "lkj123jilkjsad012klz0awfjhlsdfkjasdfijl123kj23joij"
+      }
+    },
+    {
+      "name": "adminGetOperationLogs",
+      "type": "Event",
+      "handler": "index.main",
+      "timeout": 10,
+      "runtime": "Nodejs18.15",
+      "memorySize": 256,
+      "installDependency": true,
+      "envVariables": {
+        "JWT_SECRET": "lkj123jilkjsad012klz0awfjhlsdfkjasdfijl123kj23joij"
+      }
+    },
+    {
+      "name": "adminGetRevenueTrend",
+      "type": "Event",
+      "handler": "index.main",
+      "timeout": 10,
+      "runtime": "Nodejs18.15",
+      "memorySize": 256,
+      "installDependency": true,
+      "envVariables": {
+        "JWT_SECRET": "lkj123jilkjsad012klz0awfjhlsdfkjasdfijl123kj23joij"
+      }
+    },
+    {
+      "name": "adminGetServiceList",
+      "type": "Event",
+      "handler": "index.main",
+      "timeout": 10,
+      "runtime": "Nodejs18.15",
+      "memorySize": 256,
+      "installDependency": true,
+      "envVariables": {
+        "JWT_SECRET": "lkj123jilkjsad012klz0awfjhlsdfkjasdfijl123kj23joij"
+      }
+    },
+    {
+      "name": "adminGetServiceCategories",
+      "type": "Event",
+      "handler": "index.main",
+      "timeout": 10,
+      "runtime": "Nodejs18.15",
+      "memorySize": 256,
+      "installDependency": true,
+      "envVariables": {
+        "JWT_SECRET": "lkj123jilkjsad012klz0awfjhlsdfkjasdfijl123kj23joij"
+      }
+    },
+    {
+      "name": "adminGetServiceRevenue",
+      "type": "Event",
+      "handler": "index.main",
+      "timeout": 10,
+      "runtime": "Nodejs18.15",
+      "memorySize": 256,
+      "installDependency": true,
+      "envVariables": {
+        "JWT_SECRET": "lkj123jilkjsad012klz0awfjhlsdfkjasdfijl123kj23joij"
+      }
+    },
+    {
+      "name": "adminGetTechnicianList",
+      "type": "Event",
+      "handler": "index.main",
+      "timeout": 10,
+      "runtime": "Nodejs18.15",
+      "memorySize": 256,
+      "installDependency": true,
+      "envVariables": {
+        "JWT_SECRET": "lkj123jilkjsad012klz0awfjhlsdfkjasdfijl123kj23joij"
+      }
+    },
+    {
+      "name": "adminGetTechnicianPerformance",
+      "type": "Event",
+      "handler": "index.main",
+      "timeout": 10,
+      "runtime": "Nodejs18.15",
+      "memorySize": 256,
+      "installDependency": true,
+      "envVariables": {
+        "JWT_SECRET": "lkj123jilkjsad012klz0awfjhlsdfkjasdfijl123kj23joij"
+      }
+    },
+    {
+      "name": "adminLogin",
+      "type": "Event",
+      "handler": "index.main",
+      "timeout": 10,
+      "runtime": "Nodejs18.15",
+      "memorySize": 256,
+      "installDependency": true,
+      "envVariables": {
+        "JWT_SECRET": "lkj123jilkjsad012klz0awfjhlsdfkjasdfijl123kj23joij"
+      }
+    },
+    {
+      "name": "adminLogout",
+      "type": "Event",
+      "handler": "index.main",
+      "timeout": 10,
+      "runtime": "Nodejs18.15",
+      "memorySize": 256,
+      "installDependency": true,
+      "envVariables": {
+        "JWT_SECRET": "lkj123jilkjsad012klz0awfjhlsdfkjasdfijl123kj23joij"
+      }
+    },
+    {
+      "name": "adminRechargeCard",
+      "type": "Event",
+      "handler": "index.main",
+      "timeout": 10,
+      "runtime": "Nodejs18.15",
+      "memorySize": 256,
+      "installDependency": true,
+      "envVariables": {
+        "JWT_SECRET": "lkj123jilkjsad012klz0awfjhlsdfkjasdfijl123kj23joij"
+      }
+    },
+    {
+      "name": "adminSendBirthdayNotification",
+      "type": "Event",
+      "handler": "index.main",
+      "timeout": 10,
+      "runtime": "Nodejs18.15",
+      "memorySize": 256,
+      "installDependency": true,
+      "envVariables": {
+        "JWT_SECRET": "lkj123jilkjsad012klz0awfjhlsdfkjasdfijl123kj23joij"
+      }
+    },
+    {
+      "name": "adminSetTechnicianSchedule",
+      "type": "Event",
+      "handler": "index.main",
+      "timeout": 10,
+      "runtime": "Nodejs18.15",
+      "memorySize": 256,
+      "installDependency": true,
+      "envVariables": {
+        "JWT_SECRET": "lkj123jilkjsad012klz0awfjhlsdfkjasdfijl123kj23joij"
+      }
+    },
+    {
+      "name": "adminSetTechnicianServiceSlots",
+      "type": "Event",
+      "handler": "index.main",
+      "timeout": 10,
+      "runtime": "Nodejs18.15",
+      "memorySize": 256,
+      "installDependency": true,
+      "envVariables": {
+        "JWT_SECRET": "lkj123jilkjsad012klz0awfjhlsdfkjasdfijl123kj23joij"
+      }
+    },
+    {
+      "name": "adminUnbindMemberCard",
+      "type": "Event",
+      "handler": "index.main",
+      "timeout": 10,
+      "runtime": "Nodejs18.15",
+      "memorySize": 256,
+      "installDependency": true,
+      "envVariables": {
+        "JWT_SECRET": "lkj123jilkjsad012klz0awfjhlsdfkjasdfijl123kj23joij"
+      }
+    },
+    {
+      "name": "adminToggleServiceStatus",
+      "type": "Event",
+      "handler": "index.main",
+      "timeout": 10,
+      "runtime": "Nodejs18.15",
+      "memorySize": 256,
+      "installDependency": true,
+      "envVariables": {
+        "JWT_SECRET": "lkj123jilkjsad012klz0awfjhlsdfkjasdfijl123kj23joij"
+      }
+    },
+    {
+      "name": "adminUpdateCommissionRate",
+      "type": "Event",
+      "handler": "index.main",
+      "timeout": 10,
+      "runtime": "Nodejs18.15",
+      "memorySize": 256,
+      "installDependency": true,
+      "envVariables": {
+        "JWT_SECRET": "lkj123jilkjsad012klz0awfjhlsdfkjasdfijl123kj23joij"
+      }
+    },
+    {
+      "name": "adminGetMemberCardAssociation",
+      "type": "Event",
+      "handler": "index.main",
+      "timeout": 10,
+      "runtime": "Nodejs18.15",
+      "memorySize": 256,
+      "installDependency": true,
+      "envVariables": {
+        "JWT_SECRET": "lkj123jilkjsad012klz0awfjhlsdfkjasdfijl123kj23joij"
+      }
+    },
+    {
+      "name": "adminUpdateDiscountLevel",
+      "type": "Event",
+      "handler": "index.main",
+      "timeout": 10,
+      "runtime": "Nodejs18.15",
+      "memorySize": 256,
+      "installDependency": true,
+      "envVariables": {
+        "JWT_SECRET": "lkj123jilkjsad012klz0awfjhlsdfkjasdfijl123kj23joij"
+      }
+    },
+    {
+      "name": "adminUpdateMember",
+      "type": "Event",
+      "handler": "index.main",
+      "timeout": 10,
+      "runtime": "Nodejs18.15",
+      "memorySize": 256,
+      "installDependency": true,
+      "envVariables": {
+        "JWT_SECRET": "lkj123jilkjsad012klz0awfjhlsdfkjasdfijl123kj23joij"
+      }
+    },
+    {
+      "name": "adminUpdateService",
+      "type": "Event",
+      "handler": "index.main",
+      "timeout": 10,
+      "runtime": "Nodejs18.15",
+      "memorySize": 256,
+      "installDependency": true,
+      "envVariables": {
+        "JWT_SECRET": "lkj123jilkjsad012klz0awfjhlsdfkjasdfijl123kj23joij"
+      }
+    },
+    {
+      "name": "adminUpdateTechnician",
+      "type": "Event",
+      "handler": "index.main",
+      "timeout": 10,
+      "runtime": "Nodejs18.15",
+      "memorySize": 256,
+      "installDependency": true,
+      "envVariables": {
+        "JWT_SECRET": "lkj123jilkjsad012klz0awfjhlsdfkjasdfijl123kj23joij"
+      }
+    },
+    {
+      "name": "adminUpdateTechnicianStatus",
+      "type": "Event",
+      "handler": "index.main",
+      "timeout": 10,
+      "runtime": "Nodejs18.15",
+      "memorySize": 256,
+      "installDependency": true,
+      "envVariables": {
+        "JWT_SECRET": "lkj123jilkjsad012klz0awfjhlsdfkjasdfijl123kj23joij"
+      }
+    },
+    {
+      "name": "getAdminList",
+      "type": "Event",
+      "handler": "index.main",
+      "timeout": 10,
+      "runtime": "Nodejs18.15",
+      "memorySize": 256,
+      "installDependency": true,
+      "envVariables": {
+        "JWT_SECRET": "lkj123jilkjsad012klz0awfjhlsdfkjasdfijl123kj23joij"
+      }
+    },
+    {
+      "name": "getLoginLogs",
+      "type": "Event",
+      "handler": "index.main",
+      "timeout": 10,
+      "runtime": "Nodejs18.15",
+      "memorySize": 256,
+      "installDependency": true,
+      "envVariables": {
+        "JWT_SECRET": "lkj123jilkjsad012klz0awfjhlsdfkjasdfijl123kj23joij"
+      }
+    },
+    {
+      "name": "updateAdminStatus",
+      "type": "Event",
+      "handler": "index.main",
+      "timeout": 10,
+      "runtime": "Nodejs18.15",
+      "memorySize": 256,
+      "installDependency": true,
+      "envVariables": {
+        "JWT_SECRET": "lkj123jilkjsad012klz0awfjhlsdfkjasdfijl123kj23joij"
+      }
+    }
+  ]
+}
