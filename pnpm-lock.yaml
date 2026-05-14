@@ -45,7 +45,7 @@ importers:
       '@eslint/js':
         specifier: ^9.39.4
         version: 9.39.4
-      '@rollup/rollup-win32-x64-msvc':
+      '@rollup/rollup-linux-x64-gnu':
         specifier: ^4.60.2
         version: 4.60.2
       '@testing-library/jest-dom':
@@ -899,7 +899,6 @@ packages:
     resolution: {integrity: sha512-UQjrkIdWrKI626Du8lCQ6MJp/6V1LAo2bOK9OTu4mSn8GGXIkPXk/Vsp4bLHCd9Z9Iz2OTEaokUE90VweJgIYQ==}
     cpu: [x64]
     os: [linux]
-    libc: [glibc]
 
   '@rollup/rollup-linux-x64-musl@4.60.2':
     resolution: {integrity: sha512-bTsRGj6VlSdn/XD4CGyzMnzaBs9bsRxy79eTqTCBsA8TMIEky7qg48aPkvJvFe1HyzQ5oMZdg7AnVlWQSKLTnw==}
@@ -3513,8 +3512,7 @@ snapshots:
   '@rollup/rollup-linux-s390x-gnu@4.60.2':
     optional: true
 
-  '@rollup/rollup-linux-x64-gnu@4.60.2':
-    optional: true
+  '@rollup/rollup-linux-x64-gnu@4.60.2': {}
 
   '@rollup/rollup-linux-x64-musl@4.60.2':
     optional: true
@@ -3534,7 +3532,8 @@ snapshots:
   '@rollup/rollup-win32-x64-gnu@4.60.2':
     optional: true
 
-  '@rollup/rollup-win32-x64-msvc@4.60.2': {}
+  '@rollup/rollup-win32-x64-msvc@4.60.2':
+    optional: true
 
   '@tanstack/query-core@5.100.5': {}
 

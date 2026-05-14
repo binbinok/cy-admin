@@ -4,15 +4,26 @@
   "version": "1.0.0",
   "type": "module",
   "description": "美甲美睫店铺 PC 管理系统",
+  "engines": {
+    "node": ">=18.0.0",
+    "pnpm": ">=8.0.0"
+  },
+  "os": [
+    "linux",
+    "darwin",
+    "win32"
+  ],
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "build:linux": "cross-env NODE_ENV=production tsc -b && vite build",
     "preview": "vite preview",
     "lint": "eslint . --max-warnings 0",
     "format": "prettier --write \"src/**/*.{ts,tsx,css,json}\"",
     "test": "vitest --run",
     "test:watch": "vitest",
-    "test:coverage": "vitest --run --coverage"
+    "test:coverage": "vitest --run --coverage",
+    "postinstall": "pnpm rebuild"
   },
   "dependencies": {
     "@ant-design/charts": "^2.6.7",
@@ -29,7 +40,7 @@
   "devDependencies": {
     "@ant-design/icons": "^6.2.3",
     "@eslint/js": "^9.39.4",
-    "@rollup/rollup-win32-x64-msvc": "^4.60.2",
+    "@rollup/rollup-linux-x64-gnu": "^4.60.2",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@types/node": "^25.7.0",
