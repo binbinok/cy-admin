@@ -2,6 +2,7 @@ import http from './http';
 import {
   CF_GET_MEMBER_LIST,
   CF_GET_MEMBER_DETAIL,
+  CF_CREATE_MEMBER,
   CF_UPDATE_MEMBER,
   CF_GET_MEMBER_CONSUMPTIONS,
   CF_GET_BIRTHDAY_MEMBERS,
@@ -17,6 +18,21 @@ export async function adminGetMemberList(
   const response = await http.post<ApiResponse<PageResult<Member>>>(
     `/invoke/${CF_GET_MEMBER_LIST}`,
     params,
+  );
+  return response.data;
+}
+
+export async function adminCreateMember(
+  data: {
+    nickName: string;
+    phone: string;
+    birthday?: string;
+    cardId?: string;
+  },
+): Promise<ApiResponse<Member>> {
+  const response = await http.post<ApiResponse<Member>>(
+    `/invoke/${CF_CREATE_MEMBER}`,
+    data,
   );
   return response.data;
 }

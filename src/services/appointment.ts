@@ -1,6 +1,7 @@
 import http from './http';
 import {
   CF_GET_APPOINTMENT_LIST,
+  CF_CREATE_APPOINTMENT,
   CF_CONFIRM_ARRIVAL,
   CF_COMPLETE_SERVICE,
   CF_CANCEL_APPOINTMENT,
@@ -43,6 +44,23 @@ export async function adminCompleteService(
   const response = await http.post<ApiResponse<void>>(
     `/invoke/${CF_COMPLETE_SERVICE}`,
     { appointmentId, actualAmount },
+  );
+  return response.data;
+}
+
+export async function adminCreateAppointment(
+  params: {
+    memberId: string;
+    serviceId: string;
+    technicianId: string;
+    appointmentDate: string;
+    appointmentTime: string;
+    note?: string;
+  },
+): Promise<ApiResponse<{ appointmentId: string; status: string; message: string }>> {
+  const response = await http.post<ApiResponse<{ appointmentId: string; status: string; message: string }>>(
+    `/invoke/${CF_CREATE_APPOINTMENT}`,
+    params,
   );
   return response.data;
 }

@@ -13,11 +13,14 @@ export interface TechnicianPerformance {
   technicianName: string;
   orderCount: number;
   totalAmount: number; // 分
+  commissionRate?: number; // 提成比例(%)
+  commissionAmount?: number; // 应得提成金额(分)
 }
 export interface CreateIncomeRecordPayload {
   serviceCategory: string;
   serviceName: string;
-  serviceFee: number;
+  serviceFee?: number;
+  paymentDetails?: Array<{ paymentType: string; amount: number }>;
   serviceTime: string;
   technicianId: string;
   memberId?: string;

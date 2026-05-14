@@ -37,6 +37,12 @@ export interface CardRechargeRecord {
   createdAt: Date;
 }
 
+export interface PaymentDetail {
+  paymentType: 'member_card' | 'cash' | 'meituan';
+  amount: number; // 分
+  createdAt?: Date;
+}
+
 export interface ConsumptionRecord {
   _id: string;
   memberId?: string;
@@ -53,5 +59,6 @@ export interface ConsumptionRecord {
   pointsEarned?: number;
   technicianName?: string;
   serviceTime?: Date | string;
+  paymentDetails?: PaymentDetail[];
   createdAt: Date;
 }

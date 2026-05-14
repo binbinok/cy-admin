@@ -49,12 +49,54 @@ async function getMemberBenefit(memberId) {
 }
 
 /**
+ * 验证支付方式明细
+ * @param {Array<{paymentType: string, amount: number}>} paymentDetails
+ * @returns {{valid: boolean, error?: string, totalFee?: number}}
+ */
+function validatePaymentDetails(paymentDetails) {
+  if (!Array.isArray(paymentDetails) || paymentDetails.length === 0) {
+    return { valid: false, error: '至少填写一组支付方式' };
+  }
+
+  if (paymentDetails.length > 3) {
+    return { valid: false, error: '支付方式最多3组' };
+  }
+
+  const validPaymentTypes = ['member_card', 'cash', 'meituan'];
+  const usedTypes = new Set();
+  let totalFee = 0;
+
+  for (const detail of paymentDetails) {
+    const type = String(detail.paymentType || '').trim();
+    const amount = Number(detail.amount);
+
+    if (!validPaymentTypes.includes(type)) {
+      return { valid: false, error: `无效的金额类型: ${type}` };
+    }
+
+    if (usedTypes.has(type)) {
+      return { valid: false, error: `金额类型 ${type} 重复` };
+    }
+    usedTypes.add(type);
+
+    if (!Number.isInteger(amount) || amount <= 0) {
+      return { valid: false, error: '费用金额必须大于0' };
+    }
+
+    totalFee += amount;
+  }
+
+  return { valid: true, totalFee };
+}
+
+/**
  * 手工收入录入。
  *
  * @param {{
  *   serviceCategory: string,
  *   serviceName: string,
- *   serviceFee: number,
+ *   serviceFee?: number,
+ *   paymentDetails?: Array<{paymentType: string, amount: number}>,
  *   serviceTime: string,
  *   technicianId: string,
  *   memberId?: string,
@@ -66,25 +108,46 @@ exports.main = async (event = {}) => {
     const adminInfo = verifyAuth(event);
     const serviceCategoryInput = String(event.serviceCategory || '').trim();
     const serviceName = String(event.serviceName || '').trim();
-    const serviceFee = Number(event.serviceFee);
     const serviceTime = new Date(event.serviceTime);
     const technicianId = String(event.technicianId || '').trim();
     const memberId = String(event.memberId || '').trim();
     const note = String(event.note || '').trim();
+
     if (!serviceCategoryInput) {
       return error(AdminErrorCode.VALIDATION_ERROR, '服务分类不能为空');
     }
     if (serviceName.length < 2 || serviceName.length > 30) {
       return error(AdminErrorCode.VALIDATION_ERROR, '服务内容长度需为 2-30 个字符');
     }
-    if (!Number.isInteger(serviceFee) || serviceFee <= 0) {
-      return error(AdminErrorCode.VALIDATION_ERROR, '服务费用必须为大于 0 的整数（单位：分）');
-    }
     if (Number.isNaN(serviceTime.getTime())) {
       return error(AdminErrorCode.VALIDATION_ERROR, '服务时间格式不正确');
     }
     if (!technicianId) {
       return error(AdminErrorCode.VALIDATION_ERROR, '技师不能为空');
+    }
+
+    // 处理支付方式（新逻辑：paymentDetails / 旧逻辑：serviceFee）
+    let serviceFee;
+    let paymentDetails;
+
+    if (event.paymentDetails) {
+      // 新逻辑：多支付方式
+      const validation = validatePaymentDetails(event.paymentDetails);
+      if (!validation.valid) {
+        return error(AdminErrorCode.VALIDATION_ERROR, validation.error);
+      }
+      serviceFee = validation.totalFee;
+      paymentDetails = event.paymentDetails.map(d => ({
+        paymentType: d.paymentType,
+        amount: d.amount,
+      }));
+    } else {
+      // 旧逻辑：单支付方式（兼容）
+      serviceFee = Number(event.serviceFee);
+      if (!Number.isInteger(serviceFee) || serviceFee <= 0) {
+        return error(AdminErrorCode.VALIDATION_ERROR, '服务费用必须为大于 0 的整数（单位：分）');
+      }
+      paymentDetails = [{ paymentType: 'cash', amount: serviceFee }];
     }
     const categoryAliasMap = await getCategoryAliasMap();
     const category = categoryAliasMap.get(serviceCategoryInput.toLowerCase());
@@ -114,6 +177,11 @@ exports.main = async (event = {}) => {
       serviceTime,
       note,
       source: 'manual',
+      paymentDetails: paymentDetails.map(d => ({
+        paymentType: d.paymentType,
+        amount: d.amount,
+        createdAt: now,
+      })),
       createdAt: now,
       updatedAt: now,
     };

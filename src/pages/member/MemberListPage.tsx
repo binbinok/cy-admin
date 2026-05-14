@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Table, Input, Select, Space, Typography } from 'antd';
-import { SearchOutlined } from '@ant-design/icons';
+import { Table, Input, Select, Space, Typography, Button, Modal, Form, DatePicker, message } from 'antd';
+import { SearchOutlined, PlusOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
-import { adminGetMemberList } from '@/services/member';
+import { adminGetMemberList, adminCreateMember } from '@/services/member';
 import { maskPhone, formatAmount, formatDate } from '@/utils/format';
 import { MEMBER_LEVELS, SEARCH_DEBOUNCE_MS } from '@/constants/business';
 import type { Member } from '@/types/member';
@@ -20,6 +20,11 @@ export default function MemberListPage() {
   const [level, setLevel] = useState<string | undefined>(undefined);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // 新增会员弹窗状态
+  const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [createSubmitting, setCreateSubmitting] = useState(false);
+  const [createForm] = Form.useForm();
+
   // Debounce keyword search
   useEffect(() => {
     timerRef.current = setTimeout(() => {
@@ -34,7 +39,7 @@ export default function MemberListPage() {
     };
   }, [keyword]);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, refetch } = useQuery({
     queryKey: ['memberList', page, debouncedKeyword, level],
     queryFn: async () => {
       const res = await adminGetMemberList({
@@ -61,6 +66,55 @@ export default function MemberListPage() {
     },
     [navigate],
   );
+
+  // 打开新增会员弹窗
+  const handleOpenCreateModal = useCallback(() => {
+    createForm.resetFields();
+    setCreateModalOpen(true);
+  }, [createForm]);
+
+  // 关闭新增会员弹窗
+  const handleCloseCreateModal = useCallback(() => {
+    setCreateModalOpen(false);
+    createForm.resetFields();
+  }, [createForm]);
+
+  // 提交新增会员
+  const handleSubmitCreate = useCallback(async () => {
+    try {
+      const values = await createForm.validateFields();
+      setCreateSubmitting(true);
+
+      const payload: {
+        nickName: string;
+        phone: string;
+        birthday?: string;
+      } = {
+        nickName: values.nickName,
+        phone: values.phone,
+      };
+
+      if (values.birthday) {
+        payload.birthday = values.birthday.format('YYYY-MM-DD');
+      }
+
+      const res = await adminCreateMember(payload);
+      if (!res.success) {
+        throw new Error(res.error?.message ?? '会员创建失败');
+      }
+
+      message.success('会员创建成功');
+      setCreateModalOpen(false);
+      createForm.resetFields();
+      refetch();
+    } catch (error) {
+      if (error instanceof Error) {
+        message.error(error.message);
+      }
+    } finally {
+      setCreateSubmitting(false);
+    }
+  }, [createForm, refetch]);
 
   const columns: ColumnsType<Member> = [
     {
@@ -110,9 +164,14 @@ export default function MemberListPage() {
 
   return (
     <div>
-      <Title level={4} style={{ marginBottom: 16 }}>
-        会员管理
-      </Title>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+        <Title level={4} style={{ margin: 0 }}>
+          会员管理
+        </Title>
+        <Button type="primary" icon={<PlusOutlined />} onClick={handleOpenCreateModal}>
+          新增会员
+        </Button>
+      </div>
 
       <Space style={{ marginBottom: 16 }} wrap>
         <Input
@@ -153,6 +212,42 @@ export default function MemberListPage() {
           showTotal: (t) => `共 ${t} 条`,
         }}
       />
+
+      <Modal
+        title="新增会员"
+        open={createModalOpen}
+        onOk={handleSubmitCreate}
+        onCancel={handleCloseCreateModal}
+        confirmLoading={createSubmitting}
+        destroyOnClose
+      >
+        <Form form={createForm} layout="vertical">
+          <Form.Item
+            name="nickName"
+            label="昵称"
+            rules={[
+              { required: true, message: '请输入昵称' },
+              { min: 2, message: '昵称至少2个字符' },
+              { max: 20, message: '昵称最多20个字符' },
+            ]}
+          >
+            <Input placeholder="请输入会员昵称" />
+          </Form.Item>
+          <Form.Item
+            name="phone"
+            label="手机号"
+            rules={[
+              { required: true, message: '请输入手机号' },
+              { pattern: /^1[3-9]\d{9}$/, message: '手机号格式不正确' },
+            ]}
+          >
+            <Input placeholder="请输入手机号" maxLength={11} />
+          </Form.Item>
+          <Form.Item name="birthday" label="生日">
+            <DatePicker style={{ width: '100%' }} placeholder="请选择生日" />
+          </Form.Item>
+        </Form>
+      </Modal>
     </div>
   );
 }

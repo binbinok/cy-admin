@@ -64,6 +64,18 @@
       }
     },
     {
+      "name": "adminCreateAppointment",
+      "type": "Event",
+      "handler": "index.main",
+      "timeout": 10,
+      "runtime": "Nodejs18.15",
+      "memorySize": 256,
+      "installDependency": true,
+      "envVariables": {
+        "JWT_SECRET": "lkj123jilkjsad012klz0awfjhlsdfkjasdfijl123kj23joij"
+      }
+    },
+    {
       "name": "adminConfirmArrival",
       "type": "Event",
       "handler": "index.main",
@@ -77,6 +89,18 @@
     },
     {
       "name": "adminCreateDiscountLevel",
+      "type": "Event",
+      "handler": "index.main",
+      "timeout": 10,
+      "runtime": "Nodejs18.15",
+      "memorySize": 256,
+      "installDependency": true,
+      "envVariables": {
+        "JWT_SECRET": "lkj123jilkjsad012klz0awfjhlsdfkjasdfijl123kj23joij"
+      }
+    },
+    {
+      "name": "adminCreateMember",
       "type": "Event",
       "handler": "index.main",
       "timeout": 10,
@@ -209,6 +233,18 @@
     },
     {
       "name": "adminGetCommissionReport",
+      "type": "Event",
+      "handler": "index.main",
+      "timeout": 10,
+      "runtime": "Nodejs18.15",
+      "memorySize": 256,
+      "installDependency": true,
+      "envVariables": {
+        "JWT_SECRET": "lkj123jilkjsad012klz0awfjhlsdfkjasdfijl123kj23joij"
+      }
+    },
+    {
+      "name": "adminExportPayroll",
       "type": "Event",
       "handler": "index.main",
       "timeout": 10,
@@ -365,6 +401,18 @@
     },
     {
       "name": "adminGetTechnicianList",
+      "type": "Event",
+      "handler": "index.main",
+      "timeout": 10,
+      "runtime": "Nodejs18.15",
+      "memorySize": 256,
+      "installDependency": true,
+      "envVariables": {
+        "JWT_SECRET": "lkj123jilkjsad012klz0awfjhlsdfkjasdfijl123kj23joij"
+      }
+    },
+    {
+      "name": "adminGetTechnicianIncomeDetail",
       "type": "Event",
       "handler": "index.main",
       "timeout": 10,
@@ -560,6 +608,18 @@
       "type": "Event",
       "handler": "index.main",
       "timeout": 10,
+      "runtime": "Nodejs18.15",
+      "memorySize": 256,
+      "installDependency": true,
+      "envVariables": {
+        "JWT_SECRET": "lkj123jilkjsad012klz0awfjhlsdfkjasdfijl123kj23joij"
+      }
+    },
+    {
+      "name": "initDatabaseIndexes",
+      "type": "Event",
+      "handler": "index.main",
+      "timeout": 30,
       "runtime": "Nodejs18.15",
       "memorySize": 256,
       "installDependency": true,

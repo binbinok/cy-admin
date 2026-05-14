@@ -5,7 +5,9 @@ import {
   CF_GET_SERVICE_REVENUE,
   CF_GET_CONSUMPTION_LIST,
   CF_GET_TECHNICIAN_PERFORMANCE,
+  CF_GET_TECHNICIAN_INCOME_DETAIL,
   CF_CREATE_INCOME_RECORD,
+  CF_EXPORT_PAYROLL,
 } from '@/constants/api';
 import type {
   FinanceSummary,
@@ -73,8 +75,34 @@ export async function adminGetTechnicianPerformance(
   );
   return response.data;
 }
+export async function adminGetTechnicianIncomeDetail(
+  params: {
+    technicianId: string;
+    startDate?: string;
+    endDate?: string;
+    page?: number;
+    pageSize?: number;
+  },
+): Promise<ApiResponse<PageResult<ConsumptionRecord> & { summary: { totalAmount: number; orderCount: number } }>> {
+  const response = await http.post<ApiResponse<PageResult<ConsumptionRecord> & { summary: { totalAmount: number; orderCount: number } }>>(
+    `/invoke/${CF_GET_TECHNICIAN_INCOME_DETAIL}`,
+    params,
+  );
+  return response.data;
+}
+
+export async function adminExportPayroll(
+  params: { technicianId: string; month: string },
+): Promise<ApiResponse<{ content: string; filename: string; contentType: string }>> {
+  const response = await http.post<ApiResponse<{ content: string; filename: string; contentType: string }>>(
+    `/invoke/${CF_EXPORT_PAYROLL}`,
+    params,
+  );
+  return response.data;
+}
+
 export async function adminCreateIncomeRecord(
-  payload: CreateIncomeRecordPayload,
+  payload: CreateIncomeRecordPayload & { paymentDetails?: Array<{ paymentType: string; amount: number }> },
 ): Promise<ApiResponse<CreateIncomeRecordResult>> {
   const response = await http.post<ApiResponse<CreateIncomeRecordResult>>(
     `/invoke/${CF_CREATE_INCOME_RECORD}`,

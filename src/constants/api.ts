@@ -15,6 +15,7 @@ export const CF_GET_LOGIN_LOGS = 'getLoginLogs';
 // 会员模块
 export const CF_GET_MEMBER_LIST = 'adminGetMemberList';
 export const CF_GET_MEMBER_DETAIL = 'adminGetMemberDetail';
+export const CF_CREATE_MEMBER = 'adminCreateMember';
 export const CF_UPDATE_MEMBER = 'adminUpdateMember';
 export const CF_GET_MEMBER_CONSUMPTIONS = 'adminGetMemberConsumptions';
 export const CF_GET_BIRTHDAY_MEMBERS = 'adminGetBirthdayMembers';
@@ -39,6 +40,7 @@ export const CF_TOGGLE_SERVICE_STATUS = 'adminToggleServiceStatus';
 
 // 预约模块
 export const CF_GET_APPOINTMENT_LIST = 'adminGetAppointmentList';
+export const CF_CREATE_APPOINTMENT = 'adminCreateAppointment';
 export const CF_CONFIRM_ARRIVAL = 'adminConfirmArrival';
 export const CF_COMPLETE_SERVICE = 'adminCompleteService';
 export const CF_CANCEL_APPOINTMENT = 'adminCancelAppointment';
@@ -49,7 +51,9 @@ export const CF_GET_REVENUE_TREND = 'adminGetRevenueTrend';
 export const CF_GET_SERVICE_REVENUE = 'adminGetServiceRevenue';
 export const CF_GET_CONSUMPTION_LIST = 'adminGetConsumptionList';
 export const CF_GET_TECHNICIAN_PERFORMANCE = 'adminGetTechnicianPerformance';
+export const CF_GET_TECHNICIAN_INCOME_DETAIL = 'adminGetTechnicianIncomeDetail';
 export const CF_CREATE_INCOME_RECORD = 'adminCreateIncomeRecord';
+export const CF_EXPORT_PAYROLL = 'adminExportPayroll';
 
 // 提成模块
 export const CF_GET_COMMISSION_REPORT = 'adminGetCommissionReport';

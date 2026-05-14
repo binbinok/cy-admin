@@ -11,23 +11,29 @@ import {
   Space,
   Button,
   message,
+  Form,
 } from 'antd';
-import { SearchOutlined } from '@ant-design/icons';
+import { SearchOutlined, PlusOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import type { Dayjs } from 'dayjs';
 import {
   adminGetAppointmentList,
+  adminCreateAppointment,
   adminConfirmArrival,
   adminCompleteService,
   adminCancelAppointment,
 } from '@/services/appointment';
 import { adminGetTechnicianList } from '@/services/technician';
+import { adminGetServiceList } from '@/services/service';
+import { adminGetMemberList } from '@/services/member';
 import { formatAmount } from '@/utils/format';
 import { calculatePoints } from '@/utils/points';
 import { SEARCH_DEBOUNCE_MS } from '@/constants/business';
 import type { Appointment } from '@/types/appointment';
 import type { Technician } from '@/types/technician';
+import type { Service } from '@/types/service';
+import type { Member } from '@/types/member';
 import type { PageResult } from '@/types/common';
 
 const { Title } = Typography;
@@ -73,6 +79,13 @@ export default function AppointmentListPage() {
   const [completingId, setCompletingId] = useState<string | null>(null);
   const [actualAmountYuan, setActualAmountYuan] = useState<number | null>(0);
   const [submitting, setSubmitting] = useState(false);
+
+  // 新增预约弹窗状态
+  const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [createSubmitting, setCreateSubmitting] = useState(false);
+  const [createForm] = Form.useForm();
+  const [serviceOptions, setServiceOptions] = useState<{ value: string; label: string }[]>([]);
+  const [memberOptions, setMemberOptions] = useState<{ value: string; label: string }[]>([]);
 
   // Debounce keyword search
   useEffect(() => {
@@ -255,6 +268,87 @@ export default function AppointmentListPage() {
     [fetchList],
   );
 
+  // 打开新增预约弹窗
+  const handleOpenCreateModal = useCallback(async () => {
+    createForm.resetFields();
+    createForm.setFieldsValue({
+      appointmentDate: dayjs(),
+      appointmentTime: dayjs(),
+    });
+
+    // 加载服务选项
+    try {
+      const [serviceRes, memberRes] = await Promise.all([
+        adminGetServiceList({ page: 1, pageSize: 100 }),
+        adminGetMemberList({ page: 1, pageSize: 100 }),
+      ]);
+
+      if (serviceRes.success && serviceRes.data) {
+        const data = serviceRes.data as PageResult<Service>;
+        setServiceOptions(
+          data.list
+            .filter((s) => s.active !== false)
+            .map((s) => ({ value: s._id, label: s.name })),
+        );
+      }
+
+      if (memberRes.success && memberRes.data) {
+        const data = memberRes.data as PageResult<Member>;
+        setMemberOptions(
+          data.list.map((m) => ({
+            value: m.memberId,
+            label: `${m.nickName}（${m.phone}）`,
+          })),
+        );
+      }
+    } catch {
+      message.warning('选项加载失败，请稍后重试');
+    }
+
+    setCreateModalOpen(true);
+  }, [createForm]);
+
+  // 关闭新增预约弹窗
+  const handleCloseCreateModal = useCallback(() => {
+    setCreateModalOpen(false);
+    createForm.resetFields();
+  }, [createForm]);
+
+  // 提交新增预约
+  const handleSubmitCreate = useCallback(async () => {
+    try {
+      const values = await createForm.validateFields();
+      setCreateSubmitting(true);
+
+      const appointmentDate = (values.appointmentDate as Dayjs).format('YYYY-MM-DD');
+      const appointmentTime = (values.appointmentTime as Dayjs).format('HH:mm');
+
+      const res = await adminCreateAppointment({
+        memberId: values.memberId,
+        serviceId: values.serviceId,
+        technicianId: values.technicianId,
+        appointmentDate,
+        appointmentTime,
+        note: values.note || undefined,
+      });
+
+      if (!res.success) {
+        throw new Error(res.error?.message ?? '预约创建失败');
+      }
+
+      message.success('预约创建成功');
+      setCreateModalOpen(false);
+      createForm.resetFields();
+      fetchList();
+    } catch (error) {
+      if (error instanceof Error) {
+        message.error(error.message);
+      }
+    } finally {
+      setCreateSubmitting(false);
+    }
+  }, [createForm, fetchList]);
+
   // Computed points for the complete modal
   const computedAmountFen = Math.round((actualAmountYuan ?? 0) * 100);
   const computedPoints = calculatePoints(computedAmountFen);
@@ -360,9 +454,14 @@ export default function AppointmentListPage() {
 
   return (
     <div>
-      <Title level={4} style={{ marginBottom: 16 }}>
-        预约订单管理
-      </Title>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+        <Title level={4} style={{ margin: 0 }}>
+          预约订单管理
+        </Title>
+        <Button type="primary" icon={<PlusOutlined />} onClick={handleOpenCreateModal}>
+          新增预约
+        </Button>
+      </div>
 
       <Space style={{ marginBottom: 16 }} wrap>
         <RangePicker
@@ -441,6 +540,72 @@ export default function AppointmentListPage() {
         <div>
           预计获得积分：{computedPoints} 分
         </div>
+      </Modal>
+
+      <Modal
+        title="新增预约"
+        open={createModalOpen}
+        onOk={handleSubmitCreate}
+        onCancel={handleCloseCreateModal}
+        confirmLoading={createSubmitting}
+        destroyOnClose
+        width={600}
+      >
+        <Form form={createForm} layout="vertical">
+          <Form.Item
+            name="memberId"
+            label="会员"
+            rules={[{ required: true, message: '请选择会员' }]}
+          >
+            <Select
+              placeholder="请选择会员"
+              showSearch
+              optionFilterProp="label"
+              options={memberOptions}
+            />
+          </Form.Item>
+          <Form.Item
+            name="serviceId"
+            label="服务项目"
+            rules={[{ required: true, message: '请选择服务项目' }]}
+          >
+            <Select
+              placeholder="请选择服务项目"
+              options={serviceOptions}
+            />
+          </Form.Item>
+          <Form.Item
+            name="technicianId"
+            label="技师"
+            rules={[{ required: true, message: '请选择技师' }]}
+          >
+            <Select
+              placeholder="请选择技师"
+              options={technicianOptions}
+            />
+          </Form.Item>
+          <Form.Item
+            name="appointmentDate"
+            label="预约日期"
+            rules={[{ required: true, message: '请选择预约日期' }]}
+          >
+            <DatePicker style={{ width: '100%' }} />
+          </Form.Item>
+          <Form.Item
+            name="appointmentTime"
+            label="预约时间"
+            rules={[{ required: true, message: '请选择预约时间' }]}
+          >
+            <DatePicker.TimePicker
+              style={{ width: '100%' }}
+              format="HH:mm"
+              minuteStep={15}
+            />
+          </Form.Item>
+          <Form.Item name="note" label="备注">
+            <Input.TextArea rows={3} placeholder="请输入备注（可选）" />
+          </Form.Item>
+        </Form>
       </Modal>
     </div>
   );

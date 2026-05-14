@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import type { CSSProperties } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Form, Input, Button, message } from 'antd';
 import { LockOutlined, UserOutlined } from '@ant-design/icons';
@@ -106,7 +107,7 @@ export default function LoginPage() {
   );
 }
 
-const containerStyle: React.CSSProperties = {
+const containerStyle: CSSProperties = {
   display: 'flex',
   justifyContent: 'center',
   alignItems: 'center',
@@ -114,7 +115,7 @@ const containerStyle: React.CSSProperties = {
   background: '#f0f2f5',
 };
 
-const cardStyle: React.CSSProperties = {
+const cardStyle: CSSProperties = {
   width: 400,
   padding: '40px 32px',
   background: '#fff',
@@ -122,7 +123,7 @@ const cardStyle: React.CSSProperties = {
   boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
 };
 
-const titleStyle: React.CSSProperties = {
+const titleStyle: CSSProperties = {
   textAlign: 'center',
   marginBottom: 32,
   fontSize: 24,

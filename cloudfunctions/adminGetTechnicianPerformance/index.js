@@ -34,6 +34,20 @@ exports.main = async (event = {}) => {
       })
       .get();
 
+    // 查询技师信息（获取提成比例）
+    const technicianIds = [...new Set(records.map((r) => r.technicianId).filter(Boolean))];
+    const technicianMap = new Map();
+
+    if (technicianIds.length > 0) {
+      const { data: technicians } = await db.collection('technicians')
+        .where({ _id: _.in(technicianIds) })
+        .get();
+
+      for (const tech of technicians) {
+        technicianMap.set(tech._id, tech);
+      }
+    }
+
     // 按技师聚合
     const statMap = new Map();
     for (const record of records) {
@@ -49,7 +63,20 @@ exports.main = async (event = {}) => {
       statMap.set(tid, current);
     }
 
-    return success(Array.from(statMap.values()));
+    // 计算提成金额
+    const results = Array.from(statMap.values()).map((item) => {
+      const tech = technicianMap.get(item.technicianId);
+      const commissionRate = tech ? (Number(tech.commissionRate) || 30) : 30;
+      const commissionAmount = Math.floor(item.totalAmount * commissionRate / 100);
+
+      return {
+        ...item,
+        commissionRate,
+        commissionAmount,
+      };
+    });
+
+    return success(results);
   } catch (err) {
     if (err.code) {
       return error(err.code, err.message);

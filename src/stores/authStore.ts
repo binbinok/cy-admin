@@ -42,6 +42,7 @@ const resetInactivityTimer = () => {
   }, INACTIVITY_TIMEOUT_MS);
 };
 
+// eslint-disable-next-line no-undef
 const ACTIVITY_EVENTS: Array<keyof WindowEventMap> = [
   'mousemove',
   'keydown',

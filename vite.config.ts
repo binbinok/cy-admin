@@ -9,6 +9,7 @@ export default defineConfig(({ mode }) => {
   const cloudbaseHttpPrefix = (env.VITE_CLOUDBASE_HTTP_PREFIX || '').replace(/^\/+|\/+$/g, '');
   const cloudbasePathBase = cloudbaseHttpPrefix ? `/${cloudbaseHttpPrefix}` : '';
   return {
+    base: './',
     plugins: [react()],
     resolve: {
       alias: {

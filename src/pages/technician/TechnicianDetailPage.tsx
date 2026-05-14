@@ -88,11 +88,25 @@ export default function TechnicianDetailPage() {
   const [slotLoading, setSlotLoading] = useState(false);
 
   // Fetch technician detail
+  const buildServiceSlots = useCallback((sched: ScheduleState) => {
+    const slots: ServiceSlotState[] = [];
+    Object.entries(sched).forEach(([day, timeSlots]) => {
+      timeSlots.forEach((slot) => {
+        slots.push({
+          dayOfWeek: parseInt(day, 10),
+          startTime: slot.startTime,
+          endTime: slot.endTime,
+          serviceIds: [],
+        });
+      });
+    });
+    setServiceSlots(slots);
+  }, []);
+
   const fetchDetail = useCallback(async () => {
-    if (!technicianId) return;
     setLoading(true);
     try {
-      const res = await adminGetTechnicianDetail(technicianId);
+      const res = await adminGetTechnicianDetail(technicianId!);
       if (res.success && res.data) {
         setTechnician(res.data);
         // Initialize schedule from technician data
@@ -111,7 +125,7 @@ export default function TechnicianDetailPage() {
     } finally {
       setLoading(false);
     }
-  }, [technicianId]);
+  }, [technicianId, buildServiceSlots]);
 
   // Fetch service list for service slot config
   const fetchServices = useCallback(async () => {
@@ -129,21 +143,6 @@ export default function TechnicianDetailPage() {
     fetchDetail();
     fetchServices();
   }, [fetchDetail, fetchServices]);
-
-  const buildServiceSlots = (sched: ScheduleState) => {
-    const slots: ServiceSlotState[] = [];
-    Object.entries(sched).forEach(([day, timeSlots]) => {
-      timeSlots.forEach((slot) => {
-        slots.push({
-          dayOfWeek: parseInt(day, 10),
-          startTime: slot.startTime,
-          endTime: slot.endTime,
-          serviceIds: [],
-        });
-      });
-    });
-    setServiceSlots(slots);
-  };
 
   // Navigation
   const handleBack = useCallback(() => {
@@ -254,7 +253,7 @@ export default function TechnicianDetailPage() {
     } finally {
       setScheduleLoading(false);
     }
-  }, [technicianId, schedule]);
+  }, [technicianId, schedule, buildServiceSlots]);
 
   // Service slot management
   const handleServiceSlotChange = useCallback(

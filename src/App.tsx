@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { HashRouter, Routes, Route } from 'react-router-dom';
 import { Suspense, lazy } from 'react';
 import { Spin } from 'antd';
 import AuthGuard from '@/components/layout/AuthGuard';
@@ -27,7 +27,7 @@ const LazyFallback = (
 
 function App() {
   return (
-    <BrowserRouter
+    <HashRouter
       future={{
         v7_startTransition: true,
         v7_relativeSplatPath: true,
@@ -53,7 +53,7 @@ function App() {
           </Route>
         </Routes>
       </AuthGuard>
-    </BrowserRouter>
+    </HashRouter>
   );
 }
 

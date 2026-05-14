@@ -23,7 +23,7 @@ function parseAdminToken(token: string): TokenPayload | null {
   try {
     const json = Buffer.from(encoded, 'base64url').toString('utf8');
     return JSON.parse(json) as TokenPayload;
-  } catch (error) {
+  } catch {
     return null;
   }
 }
