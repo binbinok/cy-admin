@@ -1,5 +1,6 @@
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
+import checker from 'vite-plugin-checker';
 import path from 'path';
 
 export default defineConfig(({ mode }) => {
@@ -10,7 +11,14 @@ export default defineConfig(({ mode }) => {
   const cloudbasePathBase = cloudbaseHttpPrefix ? `/${cloudbaseHttpPrefix}` : '';
   return {
     base: './',
-    plugins: [react()],
+    plugins: [
+      react(),
+      checker({
+        typescript: {
+          buildMode: true,
+        },
+      }),
+    ],
     resolve: {
       alias: {
         '@': path.resolve(__dirname, './src'),

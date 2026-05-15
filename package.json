@@ -15,8 +15,8 @@
   ],
   "scripts": {
     "dev": "vite",
-    "build": "npx tsc -b && npx vite build",
-    "build:linux": "NODE_ENV=production npx tsc -b && npx vite build",
+    "build": "vite build",
+    "build:linux": "NODE_ENV=production vite build",
     "preview": "vite preview",
     "lint": "eslint . --max-warnings 0",
     "format": "prettier --write \"src/**/*.{ts,tsx,css,json}\"",
@@ -60,6 +60,7 @@
     "prettier": "^3.8.1",
     "typescript": "^5.9.3",
     "vite": "^5.4.21",
+    "vite-plugin-checker": "^0.13.0",
     "vitest": "^2.1.9"
   }
 }
