@@ -5,11 +5,13 @@ const { verifyAuth } = require('./_shared/auth');
 const { success, error } = require('./_shared/response');
 const { AdminErrorCode } = require('./_shared/errors');
 const { paginate } = require('./_shared/db');
+const { mapLoginLog } = require('./mapLoginLog');
 
 /**
  * 获取登录日志
  * - 验证身份
  * - 分页查询 operation_logs（action 为 login 或 logout）
+ * - 映射为前端 LoginLog 契约：username / loginTime / ipAddress / result / failReason
  *
  * @param {{ page?: number, pageSize?: number }} event
  */
@@ -29,7 +31,9 @@ exports.main = async (event = {}) => {
       orderBy: { field: 'createdAt', order: 'desc' },
     });
 
-    return success({ list: result.list, total: result.total });
+    const list = (result.list || []).map(mapLoginLog);
+
+    return success({ list, total: result.total });
   } catch (err) {
     if (err.code) {
       return error(err.code, err.message);
