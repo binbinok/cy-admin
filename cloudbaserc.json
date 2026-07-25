@@ -652,6 +652,18 @@
       }
     },
     {
+      "name": "createAdmin",
+      "type": "Event",
+      "handler": "index.main",
+      "timeout": 10,
+      "runtime": "Nodejs18.15",
+      "memorySize": 256,
+      "installDependency": true,
+      "envVariables": {
+        "JWT_SECRET": "lkj123jilkjsad012klz0awfjhlsdfkjasdfijl123kj23joij"
+      }
+    },
+    {
       "name": "updateAdminStatus",
       "type": "Event",
       "handler": "index.main",
