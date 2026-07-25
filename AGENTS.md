@@ -1,35 +1,330 @@
-1. 所有代码和文档均使用中文。
-2. 你应该用英文进行思考和推理，但所有回复必须使用中文。
-3. 始终声明每个变量和函数的类型（参数和返回值）。
-4. 避免使用任何类型。
-5. 创建必要的类型。
-6. 使用 JSDoc 记录公共类和方法。
-7. 不要在函数中留下空行。
-8. 每个文件只导出一次。
+# cy-admin — AI 助手项目指南
 
-# 命名约定
-- 类使用 PascalCase。
-- 变量、函数和方法使用 camelCase。
-- 文件和目录名使用 kebab 大小写。
-- 环境变量使用大写。
-- 避免使用神奇数字和定义常量。
+`cy-admin` 是一个美甲美睫店铺的 PC 端后台管理系统。采用 React 18 + Vite + TypeScript 构建前端，CloudBase（腾讯云开发）云函数 + NoSQL 数据库作为后端。本文档面向 AI 编码助手，帮助你快速理解项目结构、技术栈和开发约定。
 
-# 函数和逻辑
-- 保持函数的简短和单一用途（<20 行）。
-- 通过以下方法避免深度嵌套块
-- 使用提前返回。
-- 将逻辑提取到实用函数中。
-- 使用高阶函数（map、filter、reduce）简化逻辑。
-- 在简单情况下使用箭头函数（<3 个指令），在其他情况下使用命名函数。
-- 使用默认参数值代替 null/未定义检查。
-- 使用 RO-RO（接收对象，返回对象）传递和返回多个参数。
+---
 
-# 数据处理
-- 避免过多使用原始类型；将数据封装在复合类型中。
-- 避免在函数内部进行验证，而应使用具有内部验证功能的类。
-- 优先考虑数据的不可变性：
-- 对不可变属性使用 readonly。
-- 对于永不改变的字面形式，使用 as const。
+## 项目概览
+
+- **名称**: cy-admin
+- **类型**: 单页应用（SPA）后台管理系统
+- **业务领域**: 美甲美睫店铺运营管理（会员、技师、服务、预约、财务、提成、会员卡、操作日志）
+- **部署目标**: CloudBase 静态网站托管 + 云函数
+
+---
+
+## 技术栈
+
+### 前端
+
+| 技术 | 版本 | 用途 |
+|------|------|------|
+| React | ^18.3.1 | UI 框架 |
+| TypeScript | ^5.9.3 | 类型系统 |
+| Vite | ^5.4.21 | 构建工具 + 开发服务器 |
+| Ant Design | ^5.29.3 | UI 组件库 |
+| React Router | ^6.30.3 | 前端路由（HashRouter） |
+| React Query (TanStack) | ^5.91.2 | 服务端状态管理 / 数据获取 |
+| Zustand | ^5.0.12 | 客户端状态管理（auth + UI） |
+| @cloudbase/js-sdk | ^2.9.0 | 调用 CloudBase 云函数 |
+| dayjs | ^1.11.19 | 日期处理 |
+| @ant-design/charts | ^2.6.7 | 数据可视化图表 |
+
+### 后端
+
+| 技术 | 版本 | 用途 |
+|------|------|------|
+| CloudBase 云函数 | Nodejs18.15 | 事件型云函数（不可更改 runtime） |
+| wx-server-sdk | ^3.0.1 | 云函数内操作 CloudBase 数据库 |
+| bcryptjs | ^2.4.3 | 密码哈希 |
+| jsonwebtoken | ^9.0.0 | JWT 签发与校验 |
+
+### 开发工具
+
+| 技术 | 版本 | 用途 |
+|------|------|------|
+| Vitest | ^2.1.9 | 单元测试 + 覆盖率 |
+| jsdom | ^28.1.0 | 测试 DOM 环境 |
+| @testing-library/react | ^16.3.2 | React 组件测试 |
+| fast-check | ^4.6.0 | 基于属性的测试 |
+| ESLint | ^9.39.4 | 代码检查 |
+| Prettier | ^3.8.1 | 代码格式化 |
+| vite-plugin-checker | ^0.13.0 | 开发时 TypeScript 类型检查 |
+
+---
+
+## 项目结构
+
+```
+cy-admin/
+├── cloudfunctions/           # 云函数目录（57 个函数）
+│   ├── _shared/              # 根级共享模块（auth.js, db.js, response.js, errors.js, token.js）
+│   ├── adminLogin/           # 每个函数独立目录
+│   │   ├── index.js          # 函数入口：exports.main = async (event, context) => {}
+│   │   ├── _shared/          # 实际部署时复制到每个函数目录下
+│   │   └── package.json      # 云函数级依赖（wx-server-sdk, bcryptjs, jsonwebtoken）
+│   ├── adminGetMemberList/
+│   └── ...                   # 其他云函数
+├── src/                      # 前端源码（TypeScript / TSX）
+│   ├── components/           # 可复用组件
+│   │   ├── charts/           # 图表组件
+│   │   ├── common/           # 通用组件（ConfirmModal, PhoneDisplay）
+│   │   └── layout/           # 布局组件（AdminLayout, AuthGuard）
+│   ├── constants/            # 常量（api.ts 云函数名, business.ts 业务常量）
+│   ├── pages/                # 页面组件（按业务域分组）
+│   ├── services/             # 领域服务：封装云函数调用
+│   ├── stores/               # Zustand 状态管理（authStore, uiStore）
+│   ├── types/                # TypeScript 类型定义（按领域分文件）
+│   ├── utils/                # 工具函数（commission, discount, format, jwt, points, validation）
+│   ├── App.tsx               # 路由定义 + 懒加载页面
+│   └── main.tsx              # React 根组件、QueryClient、auth 状态重水合
+├── tests/                    # 测试代码
+│   ├── setup.ts              # 测试全局配置（引入 @testing-library/jest-dom）
+│   ├── unit/                 # 单元测试（页面、服务、store、工具函数）
+│   └── property/             # 基于属性的测试（fast-check）
+├── rules/                    # CloudBase 开发规则文档（AI 参考用）
+├── dist/                     # Vite 构建输出（静态托管）
+├── doc/                      # 项目文档（specs, steering）
+├── openspec/                 # OpenSpec 变更提案目录
+├── package.json              # 前端依赖 + scripts
+├── vite.config.ts            # Vite 配置（proxy, @/ alias, base: './'）
+├── vitest.config.ts          # 测试配置（@/ alias, jsdom, setupFiles）
+├── tsconfig.json             # TypeScript 配置（strict, noUnusedLocals, noUnusedParameters）
+├── eslint.config.js          # ESLint 配置（忽略 cloudfunctions/）
+├── cloudbaserc.json          # CloudBase 云函数定义、环境变量、超时、内存配置
+├── .env.example              # 环境变量示例
+├── DEPLOY.md                 # CloudBase 部署指南
+└── AGENTS.md                 # 本文件
+```
+
+---
+
+## 构建与运行命令
+
+项目使用 **pnpm >= 8.0.0**，**Node.js >= 18.0.0**。
+
+```bash
+# 安装依赖
+pnpm install
+
+# 开发服务器（端口 3000）
+pnpm run dev
+
+# 生产构建
+pnpm run build
+
+# 预览生产构建
+pnpm run preview
+
+# 代码检查（ESLint 忽略 cloudfunctions/）
+pnpm run lint
+
+# 代码格式化
+pnpm run format
+
+# 测试（一次性运行）
+pnpm run test
+
+# 测试（监听模式）
+pnpm run test:watch
+
+# 测试（带覆盖率）
+pnpm run test:coverage
+```
+
+### 开发环境代理
+
+`vite.config.ts` 在本地开发时将 `/api/invoke` 代理到 CloudBase HTTP 端点：
+- 默认目标：`http://cloud1-1g7yz5w766dd366f-1394837822.ap-shanghai.app.tcloudbase.com`
+- 可通过环境变量覆盖：`VITE_CLOUDBASE_HTTP_ORIGIN`、`VITE_CLOUDBASE_HTTP_PREFIX`
+
+---
+
+## 代码风格与开发约定
+
+### 语言与注释
+- **所有代码和文档均使用中文**。
+- 你应该用英文进行思考和推理，但所有回复必须使用中文。
+
+### 类型系统
+- **始终声明每个变量和函数的类型**（参数和返回值）。
+- **避免使用 `any` 类型**。
+- 创建必要的类型，将数据封装在复合类型中。
+- 对不可变属性使用 `readonly`。
+- 对于永不改变的字面量，使用 `as const`。
+- `tsconfig.json` 启用了 `noUnusedLocals` 和 `noUnusedParameters`。注意：`pnpm run build` 只跑 `vite build`（不做类型检查），类型错误只在 **dev 模式**下通过 `vite-plugin-checker`（buildMode）暴露；提交前请自行确认无类型错误。
+
+### 命名约定
+- **类**: PascalCase
+- **变量、函数、方法**: camelCase
+- **文件和目录名**: kebab-case
+- **环境变量**: 全大写
+- **避免魔法数字**，定义命名常量（见 `src/constants/business.ts`）
+
+### 函数与逻辑
+- 保持函数简短、单一职责（**< 20 行**）。
+- **函数内部不要留空行**。
+- 使用提前返回避免深层嵌套。
+- 将逻辑提取到独立工具函数中。
+- 使用高阶函数（`map`、`filter`、`reduce`）简化逻辑。
+- 简单情况（< 3 条语句）使用箭头函数，其他情况使用命名函数。
+- 使用默认参数值代替 `null` / `undefined` 检查。
+- 使用 **RO-RO**（Receive Object, Return Object）传递和返回多个参数。
+- 避免在函数内部进行验证，优先使用具有内部验证功能的类。
+
+### 模块与导出
+- **每个文件只导出一次**（默认导出）。
+- 导入路径使用 `@/` 别名映射到 `src/`。
+
+### 前端代码组织
+- **类型**: `src/types/` 按领域分文件（`auth.ts`, `member.ts`, `service.ts` 等）。
+- **服务**: `src/services/` 每个领域一个文件，通过 `http.ts` 调用云函数。
+- **页面**: `src/pages/` 按业务域分组，在 `App.tsx` 中通过 `React.lazy()` 懒加载，`Suspense` + `Spin` 作为 fallback。
+- **常量**: 所有云函数名称定义在 `src/constants/api.ts`。
+- **状态管理**: `authStore`（Zustand，持久化到 `localStorage`），`uiStore`（侧边栏折叠、选中菜单）。
+
+### 云函数代码组织
+- 每个云函数目录包含 `index.js`，导出 `exports.main = async (event, context) => {}`。
+- 共享代码放在每个函数目录的 `_shared/` 下（实际部署前复制，非真正 monorepo 共享包）。
+- 云函数**不是 TypeScript**，使用 CommonJS（`require` / `module.exports`）。
+
+---
+
+## 测试策略
+
+### 框架与配置
+- **测试运行器**: Vitest
+- **DOM 环境**: jsdom
+- **React 测试**: `@testing-library/react`
+- **断言增强**: `@testing-library/jest-dom`
+- **属性测试**: `fast-check`
+
+### 测试文件位置与命名
+- 单元测试: `tests/unit/**/*.test.ts` / `tests/unit/**/*.test.tsx`
+- 属性测试: `tests/property/**/*.property.test.ts`
+- 全局配置: `tests/setup.ts`
+
+### 测试范围
+- **单元测试**覆盖：页面组件、services、Zustand stores、工具函数。
+- **属性测试**覆盖：核心业务逻辑（commission, finance, member, appointment 等）。
+- `@/` 路径别名在 `vitest.config.ts` 中已配置，测试中可以正常使用。
+
+### 运行测试
+```bash
+pnpm run test              # CI 模式
+pnpm run test:watch        # 开发监听
+pnpm run test:coverage     # 覆盖率报告
+```
+
+---
+
+## 认证与安全
+
+### 架构说明
+本项目**不使用 CloudBase 内置的 admin 登录鉴权**，而是自建 JWT 体系：
+- `@cloudbase/js-sdk` 的 `auth.signInAnonymously()` 仅用于获取匿名登录态，以启用 `callFunction()` 能力。
+- 真正的管理员身份通过自定义 JWT Token 传递和校验。
+
+### 登录流程
+1. 前端调用 `adminLogin` 云函数，传入用户名密码。
+2. 云函数使用 `bcryptjs`（salt rounds 10）校验密码，检查失败次数（≥5 次锁定 30 分钟）。
+3. 校验通过后签发 JWT（有效期 2 小时），返回给前端。
+4. 前端将 `token` 和 `adminInfo` 存入 `localStorage` 和 Zustand `authStore`。
+5. 后续每次调用云函数时，`http.ts` 自动在 payload 中附加 `authorization: Bearer <token>`。
+6. 云函数通过 `_shared/auth.js` 的 `verifyAuth()` 解码 JWT（密钥来自 `cloudbaserc.json` 中的 `JWT_SECRET` 环境变量）。
+7. 遇到 `UNAUTHORIZED` 或 `FORBIDDEN` 时，`http.ts` 清除登录态并强制跳转 `/login`。
+
+### 无操作超时
+- `authStore` 实现了无操作自动登出：鼠标移动、按键、点击、滚动会重置计时器。
+- 超时阈值：`INACTIVITY_TIMEOUT_MS = 2 小时`（见 `src/constants/business.ts`）。
+
+### 安全注意事项
+- `JWT_SECRET` 在 `cloudbaserc.json` 中通过环境变量注入所有云函数。**生产环境应使用强随机字符串**。
+- 密码使用 `bcryptjs` 哈希，历史明文密码在登录时自动升级。
+- 前端使用 `HashRouter`（非 `BrowserRouter`），适配静态托管环境，避免刷新 404。
+- `vite.config.ts` 中 `base: './'` 使用相对路径，确保静态资源正确加载。
+
+---
+
+## 数据库
+
+- **类型**: CloudBase NoSQL（基于 MongoDB）。
+- **关键集合**: `admin_accounts`, `members`, `technicians`, `services`, `appointments`, `operation_logs`, `discount_levels`, `member_cards`。
+- 云函数内通过 `wx-server-sdk` 的 `db.collection()` 操作数据库。
+- 部署后需调用 `initDatabaseIndexes` 云函数初始化索引（详见 `DEPLOY.md`）。
+
+---
+
+## 部署流程
+
+### 环境信息
+- **环境 ID**: `cloud1-1g7yz5w766dd366f`
+- **CloudBase CLI**: v3.3.3
+- **前端构建输出**: `dist/`（使用 `HashRouter` + 相对路径）
+
+### 部署步骤
+1. **构建前端**: `npm run build`
+2. **部署云函数**: `tcb fn deploy --all --envId cloud1-1g7yz5w766dd366f`
+3. **初始化索引**: 调用 `initDatabaseIndexes` 云函数
+4. **部署静态网站**: `tcb hosting deploy dist ./cy-admin -e cloud1-1g7yz5w766dd366f`
+
+完整部署脚本和安全建议见 `DEPLOY.md`。
+
+---
+
+## 关键文件速查
+
+| 路径 | 用途 |
+|------|------|
+| `src/main.tsx` | React 入口：根组件、QueryClient、auth 状态重水合 |
+| `src/App.tsx` | 路由配置、懒加载页面、AuthGuard 包裹 |
+| `src/services/http.ts` | CloudBase 云函数调用封装、JWT 注入、错误处理 |
+| `src/constants/api.ts` | 所有云函数名称常量 |
+| `src/constants/business.ts` | 业务常量（会员等级、积分规则、提成比例、安全阈值） |
+| `src/stores/authStore.ts` | 认证状态 + 本地存储持久化 + 无操作超时 |
+| `src/stores/uiStore.ts` | UI 状态（侧边栏折叠、当前菜单） |
+| `src/types/*.ts` | 按领域划分的 TypeScript 类型 |
+| `cloudfunctions/{name}/index.js` | 云函数入口 |
+| `cloudfunctions/{name}/_shared/` | 云函数共享模块（auth, db, response, errors, token） |
+| `cloudbaserc.json` | 云函数定义、运行时、超时、内存、环境变量 |
+| `vite.config.ts` | 开发代理、`@/` 别名、TypeScript 检查插件 |
+| `vitest.config.ts` | 测试配置、`@/` 别名、jsdom 环境 |
+| `eslint.config.js` | ESLint 规则（忽略 `cloudfunctions/`） |
+
+---
+
+## 常见陷阱（Gotchas）
+
+1. **不要在前端使用 CloudBase 内置 auth 做管理员登录** — 仅用于匿名登录以启用 `callFunction()`。
+2. **云函数不是 TypeScript** — 纯 Node.js CommonJS，不能用 ES Module 语法。
+3. **没有 CI/CD 或 pre-commit hooks** — 质量门禁完全手动执行（`npm run lint`, `npm run test`）。
+4. **`noUnusedLocals` / `noUnusedParameters` 已启用，但 `build` 不含 `tsc`** — 生产构建不会拦截未使用变量；只有 dev 服务器的 checker 会报。不要让未使用变量溜进提交。
+5. **React Router v6** — 使用了 future flags：`v7_startTransition`、`v7_relativeSplatPath`。
+6. **环境变量覆盖**: `VITE_CLOUDBASE_ENV_ID` 可覆盖默认环境 ID。
+7. **云函数 runtime 创建后不可更改** — 当前统一使用 `Nodejs18.15`。
+
+---
+
+## 相关规则文档
+
+项目根目录 `rules/` 下包含 CloudBase 各领域的规则文件。进行对应开发前建议阅读：
+
+- `rules/ui-design/rule.md` — **进行任何 UI 工作前必读**
+- `rules/cloud-functions/rule.md` — 云函数部署规范
+- `rules/web-development/rule.md` — Web SDK、静态托管规范
+- `rules/auth-web/rule.md` — CloudBase Web 认证（注意：本项目使用自定义 JWT，非内置 auth）
+- `rules/no-sql-web-sdk/rule.md` — NoSQL 数据库操作规范
+
+---
+
+## OpenSpec 说明
+
+当需求涉及以下关键词时，必须查阅 `@/openspec/AGENTS.md`：
+- 规划、提案（proposal, spec, change, plan）
+- 新功能、破坏性变更、架构调整、性能/安全大改动
+- 需求模糊，需要权威规范后再编码
+
+`openspec/` 目录包含变更提案的创建和应用流程、规范格式与约定。
 
 <!-- OPENSPEC:START -->
 # OpenSpec Instructions
@@ -49,115 +344,3 @@ Use `@/openspec/AGENTS.md` to learn:
 Keep this managed block so 'openspec update' can refresh the instructions.
 
 <!-- OPENSPEC:END -->
-
----
-
-# cy-admin — AI Assistant Notes
-
-Nail & eyelash salon management system. React 18 + Vite + TypeScript frontend, CloudBase cloud functions backend (Node.js 18), CloudBase NoSQL database.
-
-## Architecture
-
-- **Frontend**: React 18, Vite, TypeScript, Ant Design v5, Zustand (auth + UI), React Query (data fetching)
-- **Backend**: 40+ CloudBase event functions in `cloudfunctions/`, all Node.js 18.15, runtime cannot be changed after creation.
-- **Database**: CloudBase NoSQL. Key collections: `admin_accounts`, `members`, `technicians`, `services`, `appointments`, `operation_logs`, `discount_levels`, `member_cards`
-- **Auth**: Custom JWT (NOT CloudBase built-in auth). `adminLogin` issues JWT stored in `localStorage`. Every cloud function call sends `authorization: Bearer <token>` via the HTTP client. JWT secret is in `cloudbaserc.json` env vars.
-- **HTTP client**: `src/services/http.ts` wraps `@cloudbase/js-sdk`'s `app.callFunction()`. URLs use `/invoke/{functionName}` format. The SDK requires an anonymous CloudBase login first (handled automatically in `http.ts`).
-- **Local dev proxy**: `vite.config.ts` proxies `/api/invoke` to the CloudBase HTTP origin. Configurable via `VITE_CLOUDBASE_HTTP_ORIGIN` and `VITE_CLOUDBASE_HTTP_PREFIX` env vars.
-
-## Commands
-
-```bash
-# Dev server (port 3000)
-npm run dev
-
-# Build (typecheck + vite build)
-npm run build
-
-# Preview production build
-npm run preview
-
-# Lint (eslint ignores cloudfunctions/)
-npm run lint
-
-# Format
-npm run format
-
-# Tests
-npm run test              # run once
-npm run test:watch        # watch mode
-npm run test:coverage     # with coverage
-```
-
-## Cloud Functions
-
-- Each function lives in `cloudfunctions/{functionName}/` with `index.js` exporting `exports.main = async (event, context) => {}`
-- Common code is in `cloudfunctions/{functionName}/_shared/` (copied per-function, not a true monorepo shared package). There's also a root `cloudfunctions/_shared/` but functions typically use their own copy.
-- `cloudbaserc.json` defines all functions, env vars (e.g. `JWT_SECRET`), timeouts, and memory. **Do not edit runtime after creation.**
-- To add a new function: create directory, write `index.js`, add entry to `cloudbaserc.json`, deploy.
-- Shared modules in `_shared/`: `auth.js` (JWT verify), `db.js` (CloudBase db init), `response.js` (success/error wrappers), `errors.js` (error codes), `token.js`
-
-## Testing
-
-- **Framework**: Vitest + jsdom + `@testing-library/react`. Setup file: `tests/setup.ts`
-- **Path alias**: `@/` maps to `src/` (configured in both `vite.config.ts` and `vitest.config.ts`)
-- **Property-based**: `fast-check` is used for some property-based tests in `tests/property/`
-- **Unit tests**: `tests/unit/` — covers pages, services, stores, and utilities
-- Test files pattern: `tests/**/*.test.ts` and `tests/**/*.test.tsx`
-
-## Key Conventions
-
-- **Imports**: Use `@/` alias for `src/`. TypeScript `baseUrl` is `.`.
-- **Types**: Defined in `src/types/` — one file per domain (`auth.ts`, `member.ts`, `service.ts`, etc.)
-- **Services**: One service file per domain in `src/services/` — wraps cloud function calls using `http.ts`
-- **Pages**: Lazy-loaded in `src/App.tsx` via `React.lazy()` with `Suspense` + `Spin` fallback
-- **Auth guard**: `AuthGuard` component in `src/components/layout/AuthGuard.tsx` handles route protection
-- **API constants**: All cloud function names are constants in `src/constants/api.ts`
-- **State management**: `authStore` (Zustand) persists to `localStorage` (token + adminInfo). `uiStore` for UI state like modal visibility.
-- **React Query**: Configured in `src/main.tsx` with `retry: 1`, `refetchOnWindowFocus: false`, `staleTime: 5min`
-- **ESLint**: Ignores `cloudfunctions/` directory. Uses `@typescript-eslint`, `react-hooks`, `react-refresh`, `prettier`.
-
-## Auth Flow
-
-1. `adminLogin` cloud function verifies bcrypt password, checks fail count / lock status, issues JWT (2h expiry)
-2. Frontend stores `token` and `adminInfo` in `localStorage` and Zustand authStore
-3. `http.ts` attaches `authorization: Bearer <token>` to every cloud function call
-4. Cloud functions use `_shared/auth.js`'s `verifyAuth()` to decode JWT via `process.env.JWT_SECRET`
-5. On `UNAUTHORIZED` or `FORBIDDEN`, `http.ts` clears auth and redirects to `/login`
-6. Password hashing uses `bcryptjs` with salt rounds 10. Legacy plain-text passwords are auto-upgraded on login.
-
-## Gotchas
-
-- **Do not use CloudBase built-in auth for admin login** — this app uses its own JWT-based auth system. The `@cloudbase/js-sdk` auth is only for anonymous login to enable `callFunction()`.
-- **Cloud functions are NOT TypeScript** — they are plain Node.js with CommonJS (`require`/`module.exports`).
-- **No CI/CD or pre-commit hooks** — all quality gates are manual (`npm run lint`, `npm run test`).
-- **`noUnusedLocals` / `noUnusedParameters` are enabled** in `tsconfig.json` — the build will fail on unused vars.
-- **React Router v6** with future flags (`v7_startTransition`, `v7_relativeSplatPath`).
-- **Environment ID**: Hardcoded fallback `cloud1-1g7yz5w766dd366f` in `src/services/http.ts` and `cloudbaserc.json`. Override via `VITE_CLOUDBASE_ENV_ID`.
-- **Deployment**: Frontend deploys to CloudBase static hosting. Cloud functions deploy via CloudBase CLI / MCP tools (`createFunction` / `updateFunctionCode`). Refer to `rules/cloud-functions/rule.md` and `rules/web-development/rule.md` for deployment specifics.
-
-## File Map
-
-| Path | Purpose |
-|------|---------|
-| `src/main.tsx` | Entry point — React root, QueryClient, auth rehydration |
-| `src/App.tsx` | Router + lazy page imports + AuthGuard |
-| `src/services/http.ts` | CloudBase function caller + auth header injection |
-| `src/services/*.ts` | Domain services wrapping cloud function calls |
-| `src/stores/*.ts` | Zustand stores (auth, UI) |
-| `src/constants/api.ts` | Cloud function name constants |
-| `cloudfunctions/{name}/index.js` | Cloud function entry |
-| `cloudfunctions/{name}/_shared/` | Per-function shared utils |
-| `cloudbaserc.json` | CloudBase function definitions & env vars |
-| `vite.config.ts` | Dev proxy, `@/` alias |
-| `vitest.config.ts` | Test config, `@/` alias, jsdom env |
-
-## Rule Files
-
-This repo contains CloudBase rule files under `rules/` (and `.codebuddy/rules/tcb/rules/`). For CloudBase-specific guidance (auth, database, deployment, UI design), read the relevant rule files. The most commonly needed ones:
-
-- `rules/ui-design/rule.md` — **MUST read before any UI work**
-- `rules/cloud-functions/rule.md` — Cloud function deployment
-- `rules/web-development/rule.md` — Web SDK, static hosting
-- `rules/auth-web/rule.md` — CloudBase Web auth (note: this app uses custom JWT, not CloudBase built-in auth)
-- `rules/no-sql-web-sdk/rule.md` — NoSQL database operations
