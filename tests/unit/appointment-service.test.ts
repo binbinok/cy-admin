@@ -3,6 +3,7 @@ import {
   adminGetAppointmentList,
   adminConfirmArrival,
   adminCompleteService,
+  adminCreateAppointment,
   adminCancelAppointment,
 } from '@/services/appointment';
 import http from '@/services/http';
@@ -155,6 +156,73 @@ describe('appointment service', () => {
       mockPost.mockRejectedValue(new Error('取消失败'));
 
       await expect(adminCancelAppointment('a1')).rejects.toThrow('取消失败');
+    });
+  });
+
+  describe('adminCreateAppointment', () => {
+    const createParams = {
+      memberId: 'm1',
+      serviceId: 's1',
+      technicianId: 't1',
+      appointmentDate: '2026-05-20',
+      appointmentTime: '10:00',
+      note: '首次到店',
+    };
+
+    it('should POST create params and return created appointment info', async () => {
+      mockPost.mockResolvedValue({
+        data: {
+          success: true,
+          data: { appointmentId: 'APT20260520001', status: 'pending', message: '创建成功' },
+        },
+      });
+
+      const result = await adminCreateAppointment(createParams);
+
+      expect(mockPost).toHaveBeenCalledWith(
+        '/invoke/adminCreateAppointment',
+        createParams,
+      );
+      expect(result.success).toBe(true);
+      expect(result.data?.appointmentId).toBe('APT20260520001');
+      expect(result.data?.status).toBe('pending');
+    });
+
+    it('should omit note when not provided', async () => {
+      mockPost.mockResolvedValue({
+        data: {
+          success: true,
+          data: { appointmentId: 'APT20260520002', status: 'pending', message: '创建成功' },
+        },
+      });
+
+      const { note: _note, ...paramsWithoutNote } = createParams;
+      await adminCreateAppointment(paramsWithoutNote);
+
+      expect(mockPost).toHaveBeenCalledWith(
+        '/invoke/adminCreateAppointment',
+        paramsWithoutNote,
+      );
+    });
+
+    it('should return conflict failure when technician time slot is occupied', async () => {
+      mockPost.mockResolvedValue({
+        data: {
+          success: false,
+          error: { code: 'APPOINTMENT_CONFLICT', message: '该时间段技师已被预约' },
+        },
+      });
+
+      const result = await adminCreateAppointment(createParams);
+
+      expect(result.success).toBe(false);
+      expect(result.error?.message).toBe('该时间段技师已被预约');
+    });
+
+    it('should propagate error on network failure', async () => {
+      mockPost.mockRejectedValue(new Error('创建失败'));
+
+      await expect(adminCreateAppointment(createParams)).rejects.toThrow('创建失败');
     });
   });
 });

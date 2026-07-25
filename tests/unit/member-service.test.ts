@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   adminGetMemberList,
+  adminCreateMember,
   adminGetMemberDetail,
   adminUpdateMember,
   adminGetMemberConsumptions,
@@ -207,6 +208,55 @@ describe('member service', () => {
         memberId: 'M001',
       });
       expect(result.success).toBe(true);
+    });
+  });
+
+  describe('adminCreateMember', () => {
+    it('should POST full member fields and return created member', async () => {
+      const payload = {
+        nickName: '小美',
+        phone: '13800138000',
+        birthday: '1995-06-15',
+        cardId: 'CARD001',
+      };
+      const created = { _id: 'm1', memberId: 'M001', ...payload };
+      mockPost.mockResolvedValue({
+        data: { success: true, data: created },
+      });
+
+      const result = await adminCreateMember(payload);
+
+      expect(mockPost).toHaveBeenCalledWith('/invoke/adminCreateMember', payload);
+      expect(result.success).toBe(true);
+      expect(result.data?.memberId).toBe('M001');
+      expect(result.data?.birthday).toBe('1995-06-15');
+    });
+
+    it('should support optional fields omitted', async () => {
+      const payload = { nickName: '小丽', phone: '13900139000' };
+      mockPost.mockResolvedValue({
+        data: { success: true, data: { _id: 'm2', memberId: 'M002', ...payload } },
+      });
+
+      const result = await adminCreateMember(payload);
+
+      expect(mockPost).toHaveBeenCalledWith('/invoke/adminCreateMember', payload);
+      expect(result.success).toBe(true);
+      expect(result.data?.nickName).toBe('小丽');
+    });
+
+    it('should return failure when phone already exists', async () => {
+      mockPost.mockResolvedValue({
+        data: {
+          success: false,
+          error: { code: 'PHONE_EXISTS', message: '该手机号已注册' },
+        },
+      });
+
+      const result = await adminCreateMember({ nickName: '小美', phone: '13800138000' });
+
+      expect(result.success).toBe(false);
+      expect(result.error?.message).toBe('该手机号已注册');
     });
   });
 });
