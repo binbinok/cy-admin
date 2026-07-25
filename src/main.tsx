@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import App from './App';
 import { useAuthStore } from './stores/authStore';
+import './styles/global.css';
 
 // Rehydrate auth state from localStorage before rendering,
 // so authenticated users don't flash the login page.
