@@ -22,8 +22,7 @@
     "format": "prettier --write \"src/**/*.{ts,tsx,css,json}\"",
     "test": "vitest --run",
     "test:watch": "vitest",
-    "test:coverage": "vitest --run --coverage",
-    "postinstall": "pnpm rebuild"
+    "test:coverage": "vitest --run --coverage"
   },
   "dependencies": {
     "@ant-design/charts": "^2.6.7",

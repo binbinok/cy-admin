@@ -18,3 +18,6 @@ dist/
 # Logs
 *.log
 npm-debug.log*
+
+# 误生成的嵌套项目副本
+cy-admin/
