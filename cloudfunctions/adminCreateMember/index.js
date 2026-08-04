@@ -19,9 +19,10 @@ function generateMemberId() {
  * 创建会员
  *
  * @param {{
- *   nickName: string,
- *   phone: string,
+ *   nickName?: string,
+ *   phone?: string,
  *   birthday?: string,
+ *   wechatId?: string,
  *   cardId?: string
  * }} event
  */
@@ -29,33 +30,44 @@ exports.main = async (event = {}) => {
   try {
     const adminInfo = verifyAuth(event);
 
-    const nickName = String(event.nickName || '').trim();
-    const phone = String(event.phone || '').trim();
+    const rawNickName = event.nickName ? String(event.nickName).trim() : '';
+    const rawPhone = event.phone ? String(event.phone).trim() : '';
+    const rawWechatId = event.wechatId ? String(event.wechatId).trim() : '';
     const birthday = event.birthday ? String(event.birthday).trim() : undefined;
     const cardId = event.cardId ? String(event.cardId).trim() : undefined;
 
-    // 验证昵称
-    if (nickName.length < 2 || nickName.length > 20) {
+    const nickName = rawNickName || undefined;
+    const phone = rawPhone || undefined;
+    const wechatId = rawWechatId || undefined;
+
+    if (!nickName && !phone && !wechatId) {
+      return error(AdminErrorCode.VALIDATION_ERROR, '昵称、手机号、微信号至少填写一项');
+    }
+
+    if (nickName && (nickName.length < 2 || nickName.length > 20)) {
       return error(AdminErrorCode.VALIDATION_ERROR, '昵称长度需为 2–20 个字符');
     }
 
-    // 验证手机号
-    if (!/^1[3-9]\d{9}$/.test(phone)) {
+    if (phone && !/^1[3-9]\d{9}$/.test(phone)) {
       return error(AdminErrorCode.VALIDATION_ERROR, '手机号格式不正确');
     }
 
-    // 检查手机号唯一性
-    const { data: existing } = await db
-      .collection('members')
-      .where({ phone })
-      .limit(1)
-      .get();
-
-    if (existing && existing.length > 0) {
-      return error(AdminErrorCode.PHONE_ALREADY_BOUND, '该手机号已被其他会员使用');
+    if (wechatId && wechatId.length > 50) {
+      return error(AdminErrorCode.VALIDATION_ERROR, '微信号长度不能超过 50 个字符');
     }
 
-    // 验证生日格式
+    if (phone) {
+      const { data: existing } = await db
+        .collection('members')
+        .where({ phone })
+        .limit(1)
+        .get();
+
+      if (existing && existing.length > 0) {
+        return error(AdminErrorCode.PHONE_ALREADY_BOUND, '该手机号已被其他会员使用');
+      }
+    }
+
     if (birthday && !/^\d{4}-\d{2}-\d{2}$/.test(birthday)) {
       return error(AdminErrorCode.VALIDATION_ERROR, '生日格式不正确，应为 YYYY-MM-DD');
     }
@@ -63,12 +75,12 @@ exports.main = async (event = {}) => {
     const now = new Date();
     const memberId = generateMemberId();
 
-    // 创建会员记录
     const memberData = {
       memberId,
       openId: '',
-      nickName,
-      phone,
+      nickName: nickName || '',
+      phone: phone || '',
+      wechatId: wechatId || '',
       level: 'normal',
       points: 0,
       totalConsumption: 0,
@@ -109,7 +121,7 @@ exports.main = async (event = {}) => {
         action: 'create_member',
         targetType: 'member',
         targetId: memberId,
-        detail: `创建会员 ${nickName}，手机号 ${phone}`,
+        detail: `创建会员 ${nickName || wechatId || phone || ''}`,
         createdAt: now,
       },
     });

@@ -4,6 +4,7 @@ export interface Member {
   openId: string;
   nickName: string;
   phone: string;
+  wechatId?: string;
   level: 'normal' | 'silver' | 'gold' | 'diamond';
   points: number;
   totalConsumption: number; // 分

@@ -24,9 +24,10 @@ export async function adminGetMemberList(
 
 export async function adminCreateMember(
   data: {
-    nickName: string;
-    phone: string;
+    nickName?: string;
+    phone?: string;
     birthday?: string;
+    wechatId?: string;
     cardId?: string;
   },
 ): Promise<ApiResponse<Member>> {

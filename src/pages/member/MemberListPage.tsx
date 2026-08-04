@@ -83,17 +83,33 @@ export default function MemberListPage() {
   const handleSubmitCreate = useCallback(async () => {
     try {
       const values = await createForm.validateFields();
+      const nickName = values.nickName?.trim() ?? '';
+      const phone = values.phone?.trim() ?? '';
+      const wechatId = values.wechatId?.trim() ?? '';
+
+      if (!nickName && !phone && !wechatId) {
+        message.error('昵称、手机号、微信号至少填写一项');
+        return;
+      }
+
       setCreateSubmitting(true);
 
       const payload: {
-        nickName: string;
-        phone: string;
+        nickName?: string;
+        phone?: string;
         birthday?: string;
-      } = {
-        nickName: values.nickName,
-        phone: values.phone,
-      };
+        wechatId?: string;
+      } = {};
 
+      if (nickName) {
+        payload.nickName = nickName;
+      }
+      if (phone) {
+        payload.phone = phone;
+      }
+      if (wechatId) {
+        payload.wechatId = wechatId;
+      }
       if (values.birthday) {
         payload.birthday = values.birthday.format('YYYY-MM-DD');
       }
@@ -122,13 +138,21 @@ export default function MemberListPage() {
       dataIndex: 'nickName',
       key: 'nickName',
       width: 150,
+      render: (nickName: string) => nickName || '未命名会员',
     },
     {
       title: '手机号',
       dataIndex: 'phone',
       key: 'phone',
       width: 120,
-      render: (phone: string) => maskPhone(phone),
+      render: (phone: string) => (phone ? maskPhone(phone) : '-'),
+    },
+    {
+      title: '微信号',
+      dataIndex: 'wechatId',
+      key: 'wechatId',
+      width: 150,
+      render: (wechatId: string | undefined) => wechatId || '-',
     },
     {
       title: '等级',
@@ -226,7 +250,6 @@ export default function MemberListPage() {
             name="nickName"
             label="昵称"
             rules={[
-              { required: true, message: '请输入昵称' },
               { min: 2, message: '昵称至少2个字符' },
               { max: 20, message: '昵称最多20个字符' },
             ]}
@@ -237,11 +260,19 @@ export default function MemberListPage() {
             name="phone"
             label="手机号"
             rules={[
-              { required: true, message: '请输入手机号' },
               { pattern: /^1[3-9]\d{9}$/, message: '手机号格式不正确' },
             ]}
           >
             <Input placeholder="请输入手机号" maxLength={11} />
+          </Form.Item>
+          <Form.Item
+            name="wechatId"
+            label="微信号"
+            rules={[
+              { max: 50, message: '微信号最多50个字符' },
+            ]}
+          >
+            <Input placeholder="请输入微信号" maxLength={50} />
           </Form.Item>
           <Form.Item name="birthday" label="生日">
             <DatePicker style={{ width: '100%' }} placeholder="请选择生日" />
