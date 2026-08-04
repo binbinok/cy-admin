@@ -21,7 +21,8 @@ exports.main = async (event = {}) => {
   try {
     verifyAuth(event);
 
-    const { levelId, name, discountRate, minRechargeAmount } = event;
+    const { name, discountRate, minRechargeAmount } = event;
+    const levelId = String(event.levelId || event.discountLevelId || '').trim();
 
     if (!levelId) {
       return error(AdminErrorCode.VALIDATION_ERROR, '折扣等级 ID 不能为空');
