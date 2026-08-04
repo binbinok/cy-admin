@@ -1,0 +1,11 @@
+## 1. Implementation
+- [x] 1.1 创建 OpenSpec 提案文档（proposal.md、tasks.md、specs/admin-system/spec.md）
+- [ ] 1.2 会员管理：放宽会员创建表单校验，新增微信号字段，支持昵称/手机号/微信号至少填一项
+- [ ] 1.3 会员管理：更新会员类型与服务层契约，会员列表对空字段提供兜底展示
+- [ ] 1.4 云函数：调整 adminCreateMember 校验逻辑，支持微信号落库与空字段场景
+- [ ] 1.5 折扣等级：修复 adminDeleteDiscountLevel 与 adminUpdateDiscountLevel 参数名不匹配问题（兼容 levelId 与 discountLevelId）
+- [ ] 1.6 预约管理：新增预约表单支持散客自由输入，姓名必填、手机号选填
+- [ ] 1.7 云函数：调整 adminCreateAppointment 校验逻辑，支持 memberId 与 guestName 二选一必填
+- [ ] 1.8 云函数：调整 adminCompleteService 散客分支，消费记录写入 guestName 并跳过会员积分/累计消费更新
+- [ ] 1.9 补充与更新单元测试，覆盖会员仅微信号创建、三项全空被拒、散客创建预约、散客完成服务、折扣等级删除成功等场景
+- [ ] 1.10 重新部署相关云函数并归档 OpenSpec 提案
