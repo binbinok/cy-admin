@@ -30,7 +30,9 @@ function parseTimeToMinutes(timeStr) {
  * 管理员创建预约
  *
  * @param {{
- *   memberId: string,
+ *   memberId?: string,
+ *   guestName?: string,
+ *   guestPhone?: string,
  *   serviceId: string,
  *   technicianId: string,
  *   appointmentDate: string,
@@ -43,15 +45,21 @@ exports.main = async (event = {}) => {
     const adminInfo = verifyAuth(event);
 
     // 1. 验证必填字段
-    const memberId = String(event.memberId || '').trim();
+    const rawMemberId = event.memberId;
+    const memberId = rawMemberId ? String(rawMemberId).trim() : '';
+    const guestName = String(event.guestName || '').trim();
+    const guestPhone = String(event.guestPhone || '').trim();
     const serviceId = String(event.serviceId || '').trim();
     const technicianId = String(event.technicianId || '').trim();
     const appointmentDate = String(event.appointmentDate || '').trim();
     const appointmentTime = String(event.appointmentTime || '').trim();
     const note = String(event.note || '').trim();
 
-    if (!memberId) {
-      return error(AdminErrorCode.VALIDATION_ERROR, '会员不能为空');
+    if (!memberId && !guestName) {
+      return error(AdminErrorCode.VALIDATION_ERROR, '请选择会员或输入散客姓名');
+    }
+    if (guestPhone && !/^1[3-9]\d{9}$/.test(guestPhone)) {
+      return error(AdminErrorCode.VALIDATION_ERROR, '散客手机号格式不正确');
     }
     if (!serviceId) {
       return error(AdminErrorCode.VALIDATION_ERROR, '服务项目不能为空');
@@ -79,10 +87,13 @@ exports.main = async (event = {}) => {
     }
 
     // 2. 验证会员是否存在
-    const { data: members } = await db.collection('members').where({ memberId }).limit(1).get();
-    const member = (members || [])[0];
-    if (!member) {
-      return error(AdminErrorCode.MEMBER_NOT_FOUND, '会员不存在');
+    let member = null;
+    if (memberId) {
+      const { data: members } = await db.collection('members').where({ memberId }).limit(1).get();
+      member = (members || [])[0];
+      if (!member) {
+        return error(AdminErrorCode.MEMBER_NOT_FOUND, '会员不存在');
+      }
     }
 
     // 3. 验证服务项目是否存在且上架
@@ -134,9 +145,11 @@ exports.main = async (event = {}) => {
 
     const appointmentData = {
       appointmentId,
-      memberId,
-      memberName: member.nickName || member.name || '未知会员',
-      memberPhone: member.phone || '',
+      memberId: memberId || '',
+      memberName: member ? (member.nickName || member.name || '未知会员') : '',
+      memberPhone: member ? (member.phone || '') : '',
+      guestName: memberId ? '' : guestName,
+      guestPhone: memberId ? '' : guestPhone,
       serviceId,
       serviceName: serviceDoc.name || '',
       serviceDuration,
@@ -163,7 +176,9 @@ exports.main = async (event = {}) => {
         action: 'create_appointment',
         targetType: 'appointment',
         targetId: appointmentId,
-        detail: `创建预约 ${appointmentId}，会员 ${member.nickName || ''}，技师 ${technicianDoc.name || ''}，时间 ${appointmentDate} ${appointmentTime}`,
+        detail: memberId
+          ? `创建预约 ${appointmentId}，会员 ${member.nickName || ''}，技师 ${technicianDoc.name || ''}，时间 ${appointmentDate} ${appointmentTime}`
+          : `创建预约 ${appointmentId}，散客 ${guestName}${guestPhone ? `（${guestPhone}）` : ''}，技师 ${technicianDoc.name || ''}，时间 ${appointmentDate} ${appointmentTime}`,
         createdAt: now,
       },
     });

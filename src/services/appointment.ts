@@ -50,7 +50,9 @@ export async function adminCompleteService(
 
 export async function adminCreateAppointment(
   params: {
-    memberId: string;
+    memberId?: string;
+    guestName?: string;
+    guestPhone?: string;
     serviceId: string;
     technicianId: string;
     appointmentDate: string;

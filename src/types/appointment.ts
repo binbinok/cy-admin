@@ -2,6 +2,8 @@ export interface Appointment {
   _id: string;
   appointmentId: string;
   memberId: string;
+  guestName?: string;
+  guestPhone?: string;
   serviceId: string;
   technicianId: string;
   appointmentDate: string; // YYYY-MM-DD

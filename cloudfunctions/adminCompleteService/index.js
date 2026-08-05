@@ -76,6 +76,7 @@ exports.main = async (event = {}) => {
     await db.collection('consumption_records').add({
       data: {
         memberId: appointment.memberId,
+        guestName: appointment.guestName || '',
         appointmentId,
         amount: actualAmount,
         pointsEarned,

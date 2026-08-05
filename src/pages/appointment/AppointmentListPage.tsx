@@ -5,6 +5,7 @@ import {
   Modal,
   InputNumber,
   Select,
+  AutoComplete,
   DatePicker,
   Input,
   Typography,
@@ -297,7 +298,7 @@ export default function AppointmentListPage() {
         setMemberOptions(
           data.list.map((m) => ({
             value: m.memberId,
-            label: `${m.nickName}（${m.phone}）`,
+            label: `${m.nickName || '未命名会员'}${m.phone ? `（${m.phone}）` : ''}`,
           })),
         );
       }
@@ -322,15 +323,36 @@ export default function AppointmentListPage() {
 
       const appointmentDate = (values.appointmentDate as Dayjs).format('YYYY-MM-DD');
       const appointmentTime = (values.appointmentTime as Dayjs).format('HH:mm');
+      const memberInput = String(values.memberId ?? '').trim();
+      const matchedMember = memberOptions.find((option) => option.value === memberInput);
 
-      const res = await adminCreateAppointment({
-        memberId: values.memberId,
-        serviceId: values.serviceId,
-        technicianId: values.technicianId,
-        appointmentDate,
-        appointmentTime,
-        note: values.note || undefined,
-      });
+      let createParams: Parameters<typeof adminCreateAppointment>[0];
+      if (matchedMember) {
+        createParams = {
+          memberId: matchedMember.value,
+          serviceId: values.serviceId,
+          technicianId: values.technicianId,
+          appointmentDate,
+          appointmentTime,
+          note: values.note || undefined,
+        };
+      } else if (memberInput) {
+        createParams = {
+          guestName: memberInput,
+          guestPhone: values.guestPhone || undefined,
+          serviceId: values.serviceId,
+          technicianId: values.technicianId,
+          appointmentDate,
+          appointmentTime,
+          note: values.note || undefined,
+        };
+      } else {
+        message.error('请选择会员或输入散客姓名');
+        setCreateSubmitting(false);
+        return;
+      }
+
+      const res = await adminCreateAppointment(createParams);
 
       if (!res.success) {
         throw new Error(res.error?.message ?? '预约创建失败');
@@ -347,7 +369,7 @@ export default function AppointmentListPage() {
     } finally {
       setCreateSubmitting(false);
     }
-  }, [createForm, fetchList]);
+  }, [createForm, fetchList, memberOptions]);
 
   // Computed points for the complete modal
   const computedAmountFen = Math.round((actualAmountYuan ?? 0) * 100);
@@ -364,9 +386,13 @@ export default function AppointmentListPage() {
       title: '会员',
       key: 'member',
       width: 120,
-      render: (_: unknown, record: Appointment) =>
-        (record as Appointment & { memberName?: string }).memberName ??
-        record.memberId,
+      render: (_: unknown, record: Appointment) => {
+        if (record.guestName) {
+          return `${record.guestName}（散客）`;
+        }
+        const memberName = (record as Appointment & { memberName?: string }).memberName;
+        return memberName ?? record.memberId ?? '-';
+      },
     },
     {
       title: '服务项目',
@@ -555,14 +581,26 @@ export default function AppointmentListPage() {
           <Form.Item
             name="memberId"
             label="会员"
-            rules={[{ required: true, message: '请选择会员' }]}
           >
-            <Select
-              placeholder="请选择会员"
-              showSearch
-              optionFilterProp="label"
+            <AutoComplete
+              placeholder="请选择会员或输入散客姓名"
               options={memberOptions}
+              filterOption={(input, option) =>
+                (option?.label ?? '').toString().includes(input)
+              }
             />
+          </Form.Item>
+          <Form.Item
+            name="guestPhone"
+            label="散客手机号"
+            rules={[
+              {
+                pattern: /^1[3-9]\d{9}$/,
+                message: '手机号格式不正确',
+              },
+            ]}
+          >
+            <Input placeholder="请输入散客手机号（可选）" maxLength={11} />
           </Form.Item>
           <Form.Item
             name="serviceId"
