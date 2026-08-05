@@ -196,7 +196,13 @@ describe('appointment service', () => {
         },
       });
 
-      const { note: _note, ...paramsWithoutNote } = createParams;
+      const paramsWithoutNote = {
+        memberId: createParams.memberId,
+        serviceId: createParams.serviceId,
+        technicianId: createParams.technicianId,
+        appointmentDate: createParams.appointmentDate,
+        appointmentTime: createParams.appointmentTime,
+      };
       await adminCreateAppointment(paramsWithoutNote);
 
       expect(mockPost).toHaveBeenCalledWith(
