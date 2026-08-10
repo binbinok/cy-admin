@@ -129,8 +129,10 @@ export default function AppointmentListPage() {
       const res = await adminGetAppointmentList({
         page,
         pageSize: PAGE_SIZE,
-        startDate: dateRange[0] || undefined,
-        endDate: dateRange[1] || undefined,
+        startDate:
+          dateRange[0] === '' && dateRange[1] === '' ? '' : dateRange[0] || undefined,
+        endDate:
+          dateRange[0] === '' && dateRange[1] === '' ? '' : dateRange[1] || undefined,
         technicianId: technicianId || undefined,
         status: status || undefined,
         keyword: debouncedKeyword || undefined,
