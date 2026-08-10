@@ -51,7 +51,7 @@ const makeAppointment = (
   appointmentDate: '2024-06-15',
   appointmentTime: '10:00',
   status: 'pending',
-  remark: '无特殊要求',
+  note: '无特殊要求',
   createdAt: new Date('2024-06-14'),
   updatedAt: new Date('2024-06-14'),
   ...overrides,
@@ -102,7 +102,7 @@ describe('AppointmentListPage', () => {
         appointmentDate: '2024-07-01',
         appointmentTime: '14:30',
         status: 'in_service',
-        remark: '过敏体质',
+        note: '过敏体质',
       });
       mockAdminGetAppointmentList.mockResolvedValue({
         success: true,
@@ -122,7 +122,7 @@ describe('AppointmentListPage', () => {
       expect(item.appointmentDate).toBe('2024-07-01');
       expect(item.appointmentTime).toBe('14:30');
       expect(item.status).toBe('in_service');
-      expect(item.remark).toBe('过敏体质');
+      expect(item.note).toBe('过敏体质');
     });
   });
 
@@ -243,13 +243,13 @@ describe('AppointmentListPage', () => {
 
   // 5. Confirm arrival action
   describe('confirm arrival', () => {
-    it('should call adminConfirmArrival with appointmentId', async () => {
+    it('should call adminConfirmArrival with _id', async () => {
       mockAdminConfirmArrival.mockResolvedValue({ success: true });
 
       const { adminConfirmArrival } = await import('@/services/appointment');
-      const res = await adminConfirmArrival('APT001');
+      const res = await adminConfirmArrival('a1');
 
-      expect(mockAdminConfirmArrival).toHaveBeenCalledWith('APT001');
+      expect(mockAdminConfirmArrival).toHaveBeenCalledWith('a1');
       expect(res.success).toBe(true);
     });
 
@@ -260,7 +260,7 @@ describe('AppointmentListPage', () => {
       });
 
       const { adminConfirmArrival } = await import('@/services/appointment');
-      const res = await adminConfirmArrival('APT001');
+      const res = await adminConfirmArrival('a1');
 
       expect(res.success).toBe(false);
       expect(res.error?.message).toBe('状态不允许');
@@ -281,15 +281,15 @@ describe('AppointmentListPage', () => {
 
   // 6. Complete service modal with amount input
   describe('complete service', () => {
-    it('should call adminCompleteService with appointmentId and amount in fen', async () => {
+    it('should call adminCompleteService with _id and amount in fen', async () => {
       mockAdminCompleteService.mockResolvedValue({ success: true });
 
       const { adminCompleteService } = await import('@/services/appointment');
       // 99.50 yuan = 9950 fen
       const amountInFen = Math.round(99.5 * 100);
-      const res = await adminCompleteService('APT001', amountInFen);
+      const res = await adminCompleteService('a1', amountInFen);
 
-      expect(mockAdminCompleteService).toHaveBeenCalledWith('APT001', 9950);
+      expect(mockAdminCompleteService).toHaveBeenCalledWith('a1', 9950);
       expect(res.success).toBe(true);
     });
 
@@ -297,9 +297,9 @@ describe('AppointmentListPage', () => {
       mockAdminCompleteService.mockResolvedValue({ success: true });
 
       const { adminCompleteService } = await import('@/services/appointment');
-      const res = await adminCompleteService('APT001', 0);
+      const res = await adminCompleteService('a1', 0);
 
-      expect(mockAdminCompleteService).toHaveBeenCalledWith('APT001', 0);
+      expect(mockAdminCompleteService).toHaveBeenCalledWith('a1', 0);
       expect(res.success).toBe(true);
     });
 
@@ -324,15 +324,15 @@ describe('AppointmentListPage', () => {
 
   // 7. Cancel appointment action
   describe('cancel appointment', () => {
-    it('should call adminCancelAppointment with appointmentId', async () => {
+    it('should call adminCancelAppointment with _id', async () => {
       mockAdminCancelAppointment.mockResolvedValue({ success: true });
 
       const { adminCancelAppointment } = await import(
         '@/services/appointment'
       );
-      const res = await adminCancelAppointment('APT001');
+      const res = await adminCancelAppointment('a1');
 
-      expect(mockAdminCancelAppointment).toHaveBeenCalledWith('APT001');
+      expect(mockAdminCancelAppointment).toHaveBeenCalledWith('a1');
       expect(res.success).toBe(true);
     });
 
@@ -345,7 +345,7 @@ describe('AppointmentListPage', () => {
       const { adminCancelAppointment } = await import(
         '@/services/appointment'
       );
-      const res = await adminCancelAppointment('APT001');
+      const res = await adminCancelAppointment('a1');
 
       expect(res.success).toBe(false);
       expect(res.error?.message).toBe('已完成无法取消');
@@ -481,7 +481,7 @@ describe('AppointmentListPage', () => {
 
       const { adminConfirmArrival } = await import('@/services/appointment');
 
-      await expect(adminConfirmArrival('APT001')).rejects.toThrow('Timeout');
+      await expect(adminConfirmArrival('a1')).rejects.toThrow('Timeout');
     });
 
     it('should handle complete service network error', async () => {
@@ -492,7 +492,7 @@ describe('AppointmentListPage', () => {
       );
 
       await expect(
-        adminCompleteService('APT001', 5000),
+        adminCompleteService('a1', 5000),
       ).rejects.toThrow('Timeout');
     });
   });

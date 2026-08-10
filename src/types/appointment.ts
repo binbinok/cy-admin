@@ -11,6 +11,7 @@ export interface Appointment {
   status: 'pending' | 'in_service' | 'completed' | 'cancelled';
   actualAmount?: number; // 分
   remark?: string;
+  note?: string;
   createdAt: Date;
   updatedAt: Date;
 }

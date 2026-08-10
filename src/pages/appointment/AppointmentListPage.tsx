@@ -189,7 +189,7 @@ export default function AppointmentListPage() {
         cancelText: '取消',
         onOk: async () => {
           try {
-            const res = await adminConfirmArrival(record.appointmentId);
+            const res = await adminConfirmArrival(record._id);
             if (res.success) {
               message.success('已确认到店');
               fetchList();
@@ -207,7 +207,7 @@ export default function AppointmentListPage() {
 
   // Open complete service modal
   const handleOpenComplete = useCallback((record: Appointment) => {
-    setCompletingId(record.appointmentId);
+    setCompletingId(record._id);
     setActualAmountYuan(0);
     setCompleteModalOpen(true);
   }, []);
@@ -253,7 +253,7 @@ export default function AppointmentListPage() {
         okButtonProps: { danger: true },
         onOk: async () => {
           try {
-            const res = await adminCancelAppointment(record.appointmentId);
+            const res = await adminCancelAppointment(record._id);
             if (res.success) {
               message.success('预约已取消');
               fetchList();
@@ -419,10 +419,10 @@ export default function AppointmentListPage() {
     },
     {
       title: '备注',
-      dataIndex: 'remark',
-      key: 'remark',
+      dataIndex: 'note',
+      key: 'note',
       width: 150,
-      render: (val: string | undefined) => val ?? '-',
+      render: (val: string | undefined) => val || '-',
     },
     {
       title: '状态',
