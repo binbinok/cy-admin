@@ -56,6 +56,8 @@ const PAYMENT_TYPE_OPTIONS = [
   { value: 'cash', label: '现金' },
   { value: 'member_card', label: '会员卡' },
   { value: 'meituan', label: '美团' },
+  { value: 'wechat', label: '微信' },
+  { value: 'alipay', label: '支付宝' },
 ];
 
 export default function FinancePage() {

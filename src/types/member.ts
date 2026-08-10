@@ -39,7 +39,7 @@ export interface CardRechargeRecord {
 }
 
 export interface PaymentDetail {
-  paymentType: 'member_card' | 'cash' | 'meituan';
+  paymentType: 'member_card' | 'cash' | 'meituan' | 'wechat' | 'alipay';
   amount: number; // 分
   createdAt?: Date;
 }

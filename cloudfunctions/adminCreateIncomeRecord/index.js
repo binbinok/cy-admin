@@ -62,7 +62,7 @@ function validatePaymentDetails(paymentDetails) {
     return { valid: false, error: '支付方式最多3组' };
   }
 
-  const validPaymentTypes = ['member_card', 'cash', 'meituan'];
+  const validPaymentTypes = ['member_card', 'cash', 'meituan', 'wechat', 'alipay'];
   const usedTypes = new Set();
   let totalFee = 0;
 
