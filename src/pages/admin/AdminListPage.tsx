@@ -28,7 +28,6 @@ import {
   getLoginLogs,
 } from '@/services/auth';
 import { useAuthStore } from '@/stores/authStore';
-import { validateAdminCredentials } from '@/utils/validation';
 import type { AdminAccount, LoginLog } from '@/types/auth';
 
 const { Title } = Typography;
@@ -198,14 +197,6 @@ export default function AdminListPage() {
   // Handle create admin form submit
   const handleCreateSubmit = useCallback(() => {
     createForm.validateFields().then((values) => {
-      const validation = validateAdminCredentials(
-        values.username,
-        values.password,
-      );
-      if (!validation.valid) {
-        message.error(validation.errors[0]);
-        return;
-      }
       createMutation.mutate({
         username: values.username,
         password: values.password,
@@ -412,27 +403,19 @@ export default function AdminListPage() {
           <Form.Item
             name="username"
             label="用户名"
-            rules={[
-              { required: true, message: '请输入用户名' },
-              { min: 4, message: '用户名长度至少 4 个字符' },
-              { max: 20, message: '用户名长度最多 20 个字符' },
-            ]}
+            rules={[{ required: true, message: '请输入用户名' }]}
           >
-            <Input placeholder="请输入用户名（4–20 字符）" />
+            <Input placeholder="请输入用户名" />
           </Form.Item>
           <Form.Item
             name="password"
             label="初始密码"
-            rules={[
-              { required: true, message: '请输入初始密码' },
-              { min: 8, message: '密码长度至少 8 个字符' },
-              { max: 32, message: '密码长度最多 32 个字符' },
-            ]}
+            rules={[{ required: true, message: '请输入初始密码' }]}
           >
             <Input
               type="password"
               autoComplete="new-password"
-              placeholder="请输入初始密码（8–32 字符）"
+              placeholder="请输入初始密码"
             />
           </Form.Item>
           <Form.Item

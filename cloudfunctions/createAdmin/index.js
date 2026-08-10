@@ -14,7 +14,7 @@ const ADMIN_ID_PREFIX = 'ADM';
 /**
  * 创建管理员账号（仅超级管理员）
  * - JWT 鉴权（_shared/auth）
- * - 用户名 4-20 字符，密码 8-32 字符
+ * - 用户名/密码仅校验非空
  * - 密码使用 bcrypt 哈希存储（salt rounds 10），不存明文
  * - 记录创建操作日志
  *
@@ -31,11 +31,11 @@ exports.main = async (event = {}) => {
     const password = String(event.password || '');
     const role = event.role === ROLE_SUPER_ADMIN ? ROLE_SUPER_ADMIN : ROLE_ADMIN;
 
-    if (username.length < 4 || username.length > 20) {
-      return error(AdminErrorCode.VALIDATION_ERROR, '用户名长度必须为 4-20 字符');
+    if (username === '') {
+      return error(AdminErrorCode.VALIDATION_ERROR, '用户名不能为空');
     }
-    if (password.length < 8 || password.length > 32) {
-      return error(AdminErrorCode.VALIDATION_ERROR, '密码长度必须为 8-32 字符');
+    if (password === '') {
+      return error(AdminErrorCode.VALIDATION_ERROR, '密码不能为空');
     }
 
     const { data: existing } = await db
