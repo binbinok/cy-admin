@@ -62,7 +62,7 @@ exports.main = async (event = {}) => {
     if (event.category !== undefined) {
       const category = await normalizeServiceCategory(event.category);
       if (!category) {
-        return error(AdminErrorCode.VALIDATION_ERROR, '分类必须为美甲、美睫、指甲护理或套餐');
+        return error(AdminErrorCode.VALIDATION_ERROR, '分类必须为美甲、美足、卸甲、手护、脚护、前置处理、美睫、卸睫、修眉、纹眉、纹唇、美瞳线或医美');
       }
       updateData.category = category;
     }

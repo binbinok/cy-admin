@@ -34,7 +34,7 @@ async function normalizeServiceCategory(category) {
  * - 验证名称 2–30 字符
  * - 验证价格 > 0
  * - 验证时长 > 0 整数
- * - 分类：美甲/美睫/指甲护理/套餐
+ * - 分类：美甲/美足/卸甲/手护/脚护/前置处理/美睫/卸睫/修眉/纹眉/纹唇/美瞳线/医美
  * - 创建时 active = true
  *
  * @param {{ name: string, category: string, price: number, duration: number, description?: string }} event
@@ -59,7 +59,7 @@ exports.main = async (event = {}) => {
 
     // 验证分类
     if (!category) {
-      return error(AdminErrorCode.VALIDATION_ERROR, '分类必须为美甲、美睫、指甲护理或套餐');
+      return error(AdminErrorCode.VALIDATION_ERROR, '分类必须为美甲、美足、卸甲、手护、脚护、前置处理、美睫、卸睫、修眉、纹眉、纹唇、美瞳线或医美');
     }
 
     // 验证价格
