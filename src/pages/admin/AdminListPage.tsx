@@ -127,8 +127,8 @@ export default function AdminListPage() {
         message.error(res.error?.message ?? '创建失败，请重试');
       }
     },
-    onError: () => {
-      message.error('操作失败，请重试');
+    onError: (error) => {
+      message.error(error instanceof Error ? error.message : '操作失败，请稍后再试');
     },
   });
 
@@ -146,8 +146,8 @@ export default function AdminListPage() {
         message.error(res.error?.message ?? '操作失败，请重试');
       }
     },
-    onError: () => {
-      message.error('操作失败，请重试');
+    onError: (error) => {
+      message.error(error instanceof Error ? error.message : '操作失败，请稍后再试');
     },
   });
 
@@ -166,8 +166,8 @@ export default function AdminListPage() {
         message.error(res.error?.message ?? '密码修改失败，请重试');
       }
     },
-    onError: () => {
-      message.error('操作失败，请重试');
+    onError: (error) => {
+      message.error(error instanceof Error ? error.message : '操作失败，请稍后再试');
     },
   });
 

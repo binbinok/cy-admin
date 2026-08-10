@@ -364,7 +364,7 @@ describe('AdminListPage logic', () => {
       // The page should show a generic message, not the raw error
       expect(err instanceof Error).toBe(true);
       // Verify the component would use a generic message
-      const userMessage = '操作失败，请重试';
+      const userMessage = '操作失败，请稍后再试';
       expect(userMessage).not.toContain('Internal Server');
     }
   });
