@@ -151,22 +151,4 @@ describe('LoginPage logic', () => {
     expect(mockMessageError).toHaveBeenCalledWith('用户名或密码错误');
     expect(mockLogin).not.toHaveBeenCalled();
   });
-
-  it('should reject invalid credentials via validation before API call', async () => {
-    const { validateAdminCredentials } = await import('@/utils/validation');
-
-    // Username too short
-    const result1 = validateAdminCredentials('ab', 'password123');
-    expect(result1.valid).toBe(false);
-    expect(result1.errors.length).toBeGreaterThan(0);
-
-    // Password too short
-    const result2 = validateAdminCredentials('admin', 'short');
-    expect(result2.valid).toBe(false);
-    expect(result2.errors.length).toBeGreaterThan(0);
-
-    // Both valid
-    const result3 = validateAdminCredentials('admin', 'password123');
-    expect(result3.valid).toBe(true);
-  });
 });

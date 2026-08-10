@@ -5,7 +5,6 @@ import { Form, Input, Button, message } from 'antd';
 import { LockOutlined, UserOutlined } from '@ant-design/icons';
 import { adminLogin } from '@/services/auth';
 import { useAuthStore } from '@/stores/authStore';
-import { validateAdminCredentials } from '@/utils/validation';
 import { isBusinessError } from '@/services/http';
 
 interface LoginFormValues {
@@ -21,12 +20,6 @@ export default function LoginPage() {
   const handleFinish = async (values: LoginFormValues) => {
     if (submitting) return;
     setSubmitting(true);
-    const validation = validateAdminCredentials(values.username, values.password);
-    if (!validation.valid) {
-      message.error(validation.errors[0]);
-      setSubmitting(false);
-      return;
-    }
     try {
       const res = await adminLogin(values.username, values.password);
       console.log('res ', res);
@@ -78,8 +71,6 @@ export default function LoginPage() {
             name="password"
             rules={[
               { required: true, message: '请输入密码' },
-              { min: 8, message: '密码长度至少 8 个字符' },
-              { max: 32, message: '密码长度最多 32 个字符' },
             ]}
           >
             <Input
