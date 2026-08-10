@@ -9,7 +9,7 @@ const { db, _ } = require('./_shared/db');
  * 获取预约列表（多条件筛选 + 分页）
  *
  * 入参：
- *   dateFrom / dateTo  — 日期范围（字符串 YYYY-MM-DD），默认当天
+ *   dateFrom / dateTo  — 日期范围（字符串 YYYY-MM-DD），默认当天；兼容 startDate / endDate
  *   technicianId       — 技师 ID
  *   status             — 预约状态
  *   keyword            — 会员关键词（模糊匹配昵称/手机号/会员编号）
@@ -30,8 +30,8 @@ exports.main = async (event = {}) => {
     // 日期范围（默认当天）
     const today = new Date();
     const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-    const dateFrom = String(event.dateFrom || todayStr).trim();
-    const dateTo = String(event.dateTo || todayStr).trim();
+    const dateFrom = String(event.dateFrom || event.startDate || todayStr).trim();
+    const dateTo = String(event.dateTo || event.endDate || todayStr).trim();
 
     conditions.push({
       appointmentDate: _.gte(dateFrom).and(_.lte(dateTo + '\uffff')),
