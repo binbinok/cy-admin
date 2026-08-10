@@ -56,8 +56,6 @@ export default function LoginPage() {
             name="username"
             rules={[
               { required: true, message: '请输入用户名' },
-              { min: 4, message: '用户名长度至少 4 个字符' },
-              { max: 20, message: '用户名长度最多 20 个字符' },
             ]}
           >
             <Input
