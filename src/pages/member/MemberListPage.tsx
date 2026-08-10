@@ -62,7 +62,7 @@ export default function MemberListPage() {
 
   const handleRowClick = useCallback(
     (record: Member) => {
-      navigate(`/member/${record.memberId}`);
+      navigate(`/members/${record.memberId}`);
     },
     [navigate],
   );

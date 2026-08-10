@@ -19,7 +19,7 @@ import { MEMBER_LEVELS } from '@/constants/business';
 // Mock react-router-dom
 const mockNavigate = vi.fn();
 vi.mock('react-router-dom', () => ({
-  useParams: () => ({ memberId: 'MEM001' }),
+  useParams: () => ({ id: 'MEM001' }),
   useNavigate: () => mockNavigate,
 }));
 

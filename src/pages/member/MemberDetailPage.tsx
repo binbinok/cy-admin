@@ -33,7 +33,7 @@ const { Title } = Typography;
 const CONSUMPTION_PAGE_SIZE = 10;
 
 export default function MemberDetailPage() {
-  const { memberId } = useParams<{ memberId: string }>();
+  const { id: memberId } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 

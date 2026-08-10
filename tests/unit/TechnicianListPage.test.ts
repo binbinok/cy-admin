@@ -292,21 +292,21 @@ describe('TechnicianListPage', () => {
 
   // 6. Click row navigates to detail page
   describe('row navigation', () => {
-    it('should navigate to /technician/:_id on row click', () => {
+    it('should navigate to /technicians/:_id on row click', () => {
       const tech = makeTechnician({ _id: 'tech-abc-123' });
 
       // Simulate the handleRowClick logic
-      mockNavigate(`/technician/${tech._id}`);
+      mockNavigate(`/technicians/${tech._id}`);
 
-      expect(mockNavigate).toHaveBeenCalledWith('/technician/tech-abc-123');
+      expect(mockNavigate).toHaveBeenCalledWith('/technicians/tech-abc-123');
     });
 
     it('should use _id for navigation path', () => {
       const tech = makeTechnician({ _id: 'tech-xyz-789' });
 
-      mockNavigate(`/technician/${tech._id}`);
+      mockNavigate(`/technicians/${tech._id}`);
 
-      expect(mockNavigate).toHaveBeenCalledWith('/technician/tech-xyz-789');
+      expect(mockNavigate).toHaveBeenCalledWith('/technicians/tech-xyz-789');
     });
   });
 

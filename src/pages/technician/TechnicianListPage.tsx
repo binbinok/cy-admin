@@ -208,7 +208,7 @@ export default function TechnicianListPage() {
 
   const handleRowClick = useCallback(
     (record: Technician) => {
-      navigate(`/technician/${record._id}`);
+      navigate(`/technicians/${record._id}`);
     },
     [navigate],
   );

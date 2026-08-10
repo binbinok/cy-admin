@@ -188,21 +188,21 @@ describe('MemberListPage', () => {
 
   // 4. Click row navigates to member detail
   describe('row navigation', () => {
-    it('should navigate to /member/:memberId on row click', () => {
+    it('should navigate to /members/:memberId on row click', () => {
       const member = makeMember({ memberId: 'MEM042' });
 
       // Simulate the handleRowClick logic
-      mockNavigate(`/member/${member.memberId}`);
+      mockNavigate(`/members/${member.memberId}`);
 
-      expect(mockNavigate).toHaveBeenCalledWith('/member/MEM042');
+      expect(mockNavigate).toHaveBeenCalledWith('/members/MEM042');
     });
 
     it('should use memberId (not _id) for navigation', () => {
       const member = makeMember({ _id: 'mongo-id-123', memberId: 'MEM099' });
 
-      mockNavigate(`/member/${member.memberId}`);
+      mockNavigate(`/members/${member.memberId}`);
 
-      expect(mockNavigate).toHaveBeenCalledWith('/member/MEM099');
+      expect(mockNavigate).toHaveBeenCalledWith('/members/MEM099');
       expect(mockNavigate).not.toHaveBeenCalledWith(
         expect.stringContaining('mongo-id-123'),
       );
