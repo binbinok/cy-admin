@@ -36,9 +36,28 @@ exports.main = async (event = {}) => {
 
     const pendingCount = countRes.total || 0;
     if (pendingCount > 0) {
+      const pendingRes = await db
+        .collection('appointments')
+        .where({
+          technicianId,
+          status: _.in(['pending', 'in_service']),
+        })
+        .field({
+          appointmentId: true,
+          appointmentDate: true,
+        })
+        .limit(5)
+        .get();
+
+      const list = pendingRes.data || [];
+      const summary = list
+        .filter((item) => item.appointmentDate && item.appointmentId)
+        .map((item) => `${item.appointmentDate} ${item.appointmentId}`)
+        .join('、');
+      const suffix = pendingCount > 5 ? '等' : '';
       return error(
         AdminErrorCode.TECHNICIAN_HAS_PENDING_APPOINTMENTS,
-        `该技师存在 ${pendingCount} 个未完成预约，无法删除`
+        `该技师存在 ${pendingCount} 个未完成预约（${summary}${suffix}），无法删除，请先在预约管理中处理`
       );
     }
 
