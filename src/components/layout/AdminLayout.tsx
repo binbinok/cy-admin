@@ -56,13 +56,15 @@ export default function AdminLayout() {
 
   const selectedKey = useMemo(() => {
     const path = location.pathname;
-    const matched = menuItems.find(
-      (item) => item && 'key' in item && path.startsWith(item.key as string),
-    );
     if (path === '/') return '/';
-    return matched && path !== '/'
-      ? (matched.key as string)
-      : '/';
+    const matched = menuItems.find(
+      (item) =>
+        item &&
+        'key' in item &&
+        item.key !== '/' &&
+        (path === item.key || path.startsWith(`${item.key}/`)),
+    );
+    return matched && 'key' in matched ? (matched.key as string) : '/';
   }, [location.pathname]);
 
   const handleMenuClick: MenuProps['onClick'] = ({ key }) => {
