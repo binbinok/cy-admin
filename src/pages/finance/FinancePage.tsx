@@ -33,6 +33,7 @@ import {
 import { adminGetTechnicianList } from '@/services/technician';
 import { adminGetMemberList } from '@/services/member';
 import { adminGetServiceCategories } from '@/services/service';
+import { useAuthStore } from '@/stores/authStore';
 import type { ConsumptionRecord, PaymentDetail } from '@/types/member';
 import type { Member } from '@/types/member';
 import type { Technician } from '@/types/technician';
@@ -59,6 +60,8 @@ const PAYMENT_TYPE_OPTIONS = [
 
 export default function FinancePage() {
   const [loading, setLoading] = useState<boolean>(false);
+  const isSuperAdmin = useAuthStore((s) => s.adminInfo?.role === 'super_admin');
+
   const [summary, setSummary] = useState<SummaryState>({
     today: EMPTY_SUMMARY,
     week: EMPTY_SUMMARY,
@@ -450,19 +453,21 @@ export default function FinancePage() {
           >
             查看明细
           </Button>
-          <Button
-            type="link"
-            size="small"
-            icon={<DownloadOutlined />}
-            onClick={() => {
-              exportForm.setFieldsValue({
-                technicianId: record.technicianId,
-              });
-              setExportModalOpen(true);
-            }}
-          >
-            导出工资条
-          </Button>
+          {isSuperAdmin && (
+            <Button
+              type="link"
+              size="small"
+              icon={<DownloadOutlined />}
+              onClick={() => {
+                exportForm.setFieldsValue({
+                  technicianId: record.technicianId,
+                });
+                setExportModalOpen(true);
+              }}
+            >
+              导出工资条
+            </Button>
+          )}
         </Space>
       ),
     },
@@ -545,9 +550,11 @@ export default function FinancePage() {
           <Button type="primary" onClick={handleOpenIncomeModal}>
             收入录入
           </Button>
-          <Button onClick={handleOpenExportModal}>
-            导出工资条
-          </Button>
+          {isSuperAdmin && (
+            <Button onClick={handleOpenExportModal}>
+              导出工资条
+            </Button>
+          )}
         </div>
       </div>
       <Row gutter={16} style={{ marginBottom: 16 }}>

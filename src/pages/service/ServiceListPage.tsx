@@ -21,6 +21,7 @@ import {
   adminUpdateService,
   adminToggleServiceStatus,
 } from '@/services/service';
+import { useAuthStore } from '@/stores/authStore';
 import { formatAmount } from '@/utils/format';
 import { SEARCH_DEBOUNCE_MS } from '@/constants/business';
 import type { Service, ServiceCategory } from '@/types/service';
@@ -39,6 +40,8 @@ const DEFAULT_CATEGORY_OPTIONS: Array<{ value: string; label: string }> = [
 
 export default function ServiceListPage() {
   const [page, setPage] = useState(1);
+  const isSuperAdmin = useAuthStore((s) => s.adminInfo?.role === 'super_admin');
+
   const [keyword, setKeyword] = useState('');
   const [debouncedKeyword, setDebouncedKeyword] = useState('');
   const [category, setCategory] = useState<string | undefined>(undefined);
@@ -300,6 +303,10 @@ export default function ServiceListPage() {
     },
   ];
 
+  const displayColumns = isSuperAdmin
+    ? columns
+    : columns.filter((column) => column.key !== 'action');
+
   return (
     <div>
       <div
@@ -313,13 +320,15 @@ export default function ServiceListPage() {
         <Title level={4} style={{ margin: 0 }}>
           服务项目管理
         </Title>
-        <Button
-          type="primary"
-          icon={<PlusOutlined />}
-          onClick={handleOpenCreate}
-        >
-          新增服务
-        </Button>
+        {isSuperAdmin && (
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={handleOpenCreate}
+          >
+            新增服务
+          </Button>
+        )}
       </div>
 
       <Space style={{ marginBottom: 16 }} wrap>
@@ -342,7 +351,7 @@ export default function ServiceListPage() {
       </Space>
 
       <Table<Service>
-        columns={columns}
+        columns={displayColumns}
         dataSource={serviceList}
         rowKey="_id"
         loading={loading}

@@ -31,6 +31,7 @@ import {
   adminSetTechnicianServiceSlots,
 } from '@/services/technician';
 import { adminGetServiceList } from '@/services/service';
+import { useAuthStore } from '@/stores/authStore';
 import type { Technician } from '@/types/technician';
 import type { Service } from '@/types/service';
 
@@ -73,6 +74,7 @@ interface ServiceSlotState {
 export default function TechnicianDetailPage() {
   const { id: technicianId } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const isSuperAdmin = useAuthStore((s) => s.adminInfo?.role === 'super_admin');
 
   const [technician, setTechnician] = useState<Technician | null>(null);
   const [loading, setLoading] = useState(true);
@@ -353,9 +355,11 @@ export default function TechnicianDetailPage() {
                 : '-'}
             </Descriptions.Item>
           </Descriptions>
-          <Button type="primary" onClick={handleOpenEdit}>
-            编辑信息
-          </Button>
+          {isSuperAdmin && (
+            <Button type="primary" onClick={handleOpenEdit}>
+              编辑信息
+            </Button>
+          )}
         </div>
       ),
     },
@@ -472,6 +476,10 @@ export default function TechnicianDetailPage() {
     },
   ];
 
+  const displayTabItems = isSuperAdmin
+    ? tabItems
+    : tabItems.filter((item) => item.key === 'basic');
+
   return (
     <div>
       <Space style={{ marginBottom: 16 }}>
@@ -484,7 +492,7 @@ export default function TechnicianDetailPage() {
         技师详情
       </Title>
 
-      <Tabs items={tabItems} />
+      <Tabs items={displayTabItems} />
 
       {/* Edit Modal */}
       <Modal

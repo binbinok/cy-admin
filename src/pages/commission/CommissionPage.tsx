@@ -9,6 +9,7 @@ import {
   type CommissionConfigItem,
   type CommissionReportItem,
 } from '@/services/commission';
+import { useAuthStore } from '@/stores/authStore';
 import { formatAmount } from '@/utils/format';
 
 const { Title } = Typography;
@@ -16,6 +17,8 @@ const { RangePicker } = DatePicker;
 
 export default function CommissionPage() {
   const [reportData, setReportData] = useState<CommissionReportItem[]>([]);
+  const isSuperAdmin = useAuthStore((s) => s.adminInfo?.role === 'super_admin');
+
   const [configData, setConfigData] = useState<CommissionConfigItem[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [modalOpen, setModalOpen] = useState<boolean>(false);
@@ -144,11 +147,11 @@ export default function CommissionPage() {
           technicianName: record.technicianName,
           commissionRate: 30,
         };
-        return (
+        return isSuperAdmin ? (
           <Button type="link" size="small" onClick={() => openRateModal(configItem)}>
             调整比例
           </Button>
-        );
+        ) : null;
       },
     },
   ];

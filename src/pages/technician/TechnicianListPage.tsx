@@ -21,6 +21,7 @@ import {
   adminUpdateTechnicianStatus,
   adminDeleteTechnician,
 } from '@/services/technician';
+import { useAuthStore } from '@/stores/authStore';
 import type { Technician } from '@/types/technician';
 
 const { Title } = Typography;
@@ -53,6 +54,7 @@ function getScheduleSummary(schedule: Technician['schedule']): string {
 export default function TechnicianListPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const isSuperAdmin = useAuthStore((s) => s.adminInfo?.role === 'super_admin');
 
   const [page, setPage] = useState(1);
   const [createModalOpen, setCreateModalOpen] = useState(false);
@@ -292,6 +294,10 @@ export default function TechnicianListPage() {
     },
   ];
 
+  const displayColumns = isSuperAdmin
+    ? columns
+    : columns.filter((column) => column.key !== 'action');
+
   return (
     <div>
       <div
@@ -305,17 +311,19 @@ export default function TechnicianListPage() {
         <Title level={4} style={{ margin: 0 }}>
           技师管理
         </Title>
-        <Button
-          type="primary"
-          icon={<PlusOutlined />}
-          onClick={() => setCreateModalOpen(true)}
-        >
-          新增技师
-        </Button>
+        {isSuperAdmin && (
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={() => setCreateModalOpen(true)}
+          >
+            新增技师
+          </Button>
+        )}
       </div>
 
       <Table<Technician>
-        columns={columns}
+        columns={displayColumns}
         dataSource={technicianList}
         rowKey="_id"
         loading={isLoading}

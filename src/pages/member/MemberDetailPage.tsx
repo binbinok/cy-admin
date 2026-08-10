@@ -23,6 +23,7 @@ import {
   adminUpdateMember,
   adminGetMemberConsumptions,
 } from '@/services/member';
+import { useAuthStore } from '@/stores/authStore';
 import { adminBindMemberCard, adminUnbindMemberCard } from '@/services/memberCard';
 import { maskPhone, formatAmount, formatDate } from '@/utils/format';
 import { validateMemberInfo } from '@/utils/validation';
@@ -46,6 +47,8 @@ export default function MemberDetailPage() {
   const [bindCardForm] = Form.useForm<{ cardId: string }>();
   const [editLoading, setEditLoading] = useState(false);
   const [bindCardLoading, setBindCardLoading] = useState(false);
+
+  const isSuperAdmin = useAuthStore((s) => s.adminInfo?.role === 'super_admin');
 
   // Fetch member detail
   const { data: detailData, isLoading: detailLoading } = useQuery({
@@ -394,9 +397,11 @@ export default function MemberDetailPage() {
       </Descriptions>
 
       <Space style={{ marginBottom: 16 }}>
-        <Button type="primary" onClick={handleOpenEdit}>
-          编辑信息
-        </Button>
+        {isSuperAdmin && (
+          <Button type="primary" onClick={handleOpenEdit}>
+            编辑信息
+          </Button>
+        )}
         <Button onClick={handleOpenRecharge}>充值</Button>
       </Space>
 

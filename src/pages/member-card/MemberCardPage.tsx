@@ -8,6 +8,7 @@ import {
   adminUpdateDiscountLevel,
   type DiscountLevel,
 } from '@/services/memberCard';
+import { useAuthStore } from '@/stores/authStore';
 import { formatAmount } from '@/utils/format';
 
 const { Title } = Typography;
@@ -19,6 +20,7 @@ interface DiscountLevelForm {
 }
 
 export default function MemberCardPage() {
+  const isSuperAdmin = useAuthStore((s) => s.adminInfo?.role === 'super_admin');
   const [loading, setLoading] = useState<boolean>(false);
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [list, setList] = useState<DiscountLevel[]>([]);
@@ -160,18 +162,24 @@ export default function MemberCardPage() {
     },
   ];
 
+  const displayColumns = isSuperAdmin
+    ? columns
+    : columns.filter((column) => column.key !== 'action');
+
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
         <Title level={4} style={{ margin: 0 }}>
           会员卡与折扣等级管理
         </Title>
-        <Button type="primary" onClick={openCreateModal}>
-          新增折扣等级
-        </Button>
+        {isSuperAdmin && (
+          <Button type="primary" onClick={openCreateModal}>
+            新增折扣等级
+          </Button>
+        )}
       </div>
       <Card>
-        <Table<DiscountLevel> rowKey="_id" columns={columns} loading={loading} dataSource={list} pagination={false} />
+        <Table<DiscountLevel> rowKey="_id" columns={displayColumns} loading={loading} dataSource={list} pagination={false} />
       </Card>
       <Modal
         title={editing ? '编辑折扣等级' : '新增折扣等级'}

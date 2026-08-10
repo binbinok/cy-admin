@@ -5,6 +5,7 @@ import { Table, Input, Select, Space, Typography, Button, Modal, Form, DatePicke
 import { SearchOutlined, PlusOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { adminGetMemberList, adminCreateMember } from '@/services/member';
+import { useAuthStore } from '@/stores/authStore';
 import { maskPhone, formatAmount, formatDate } from '@/utils/format';
 import { MEMBER_LEVELS, SEARCH_DEBOUNCE_MS } from '@/constants/business';
 import type { Member } from '@/types/member';
@@ -14,6 +15,8 @@ const PAGE_SIZE = 10;
 
 export default function MemberListPage() {
   const navigate = useNavigate();
+  const isSuperAdmin = useAuthStore((s) => s.adminInfo?.role === 'super_admin');
+
   const [page, setPage] = useState(1);
   const [keyword, setKeyword] = useState('');
   const [debouncedKeyword, setDebouncedKeyword] = useState('');
@@ -192,9 +195,11 @@ export default function MemberListPage() {
         <Title level={4} style={{ margin: 0 }}>
           会员管理
         </Title>
-        <Button type="primary" icon={<PlusOutlined />} onClick={handleOpenCreateModal}>
-          新增会员
-        </Button>
+        {isSuperAdmin && (
+          <Button type="primary" icon={<PlusOutlined />} onClick={handleOpenCreateModal}>
+            新增会员
+          </Button>
+        )}
       </div>
 
       <Space style={{ marginBottom: 16 }} wrap>
