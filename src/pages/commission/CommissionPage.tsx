@@ -15,6 +15,15 @@ import { formatAmount } from '@/utils/format';
 const { Title } = Typography;
 const { RangePicker } = DatePicker;
 
+// eslint-disable-next-line react-refresh/only-export-components
+export function toArray<T>(data: unknown): T[] {
+  if (Array.isArray(data)) return data as T[];
+  if (data && typeof data === 'object' && Array.isArray((data as { list?: unknown[] }).list)) {
+    return (data as { list: T[] }).list;
+  }
+  return [];
+}
+
 export default function CommissionPage() {
   const [reportData, setReportData] = useState<CommissionReportItem[]>([]);
   const isSuperAdmin = useAuthStore((s) => s.adminInfo?.role === 'super_admin');
@@ -47,8 +56,8 @@ export default function CommissionPage() {
       if (!reportRes.success || !configRes.success) {
         throw new Error(reportRes.error?.message ?? configRes.error?.message ?? '提成数据加载失败');
       }
-      setReportData(reportRes.data ?? []);
-      setConfigData(configRes.data ?? []);
+      setReportData(toArray<CommissionReportItem>(reportRes.data));
+      setConfigData(toArray<CommissionConfigItem>(configRes.data));
     } catch (error) {
       message.error(error instanceof Error ? error.message : '提成数据加载失败');
     } finally {
