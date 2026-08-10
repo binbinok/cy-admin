@@ -33,9 +33,18 @@ const PAGE_SIZE = 10;
 
 const DEFAULT_CATEGORY_OPTIONS: Array<{ value: string; label: string }> = [
   { value: '美甲', label: '美甲' },
+  { value: '美足', label: '美足' },
+  { value: '卸甲', label: '卸甲' },
+  { value: '手护', label: '手护' },
+  { value: '脚护', label: '脚护' },
+  { value: '前置处理', label: '前置处理' },
   { value: '美睫', label: '美睫' },
-  { value: '指甲护理', label: '指甲护理' },
-  { value: '套餐', label: '套餐' },
+  { value: '卸睫', label: '卸睫' },
+  { value: '修眉', label: '修眉' },
+  { value: '纹眉', label: '纹眉' },
+  { value: '纹唇', label: '纹唇' },
+  { value: '美瞳线', label: '美瞳线' },
+  { value: '医美', label: '医美' },
 ];
 
 export default function ServiceListPage() {
