@@ -1,8 +1,9 @@
 {
-  "name": "initDatabaseIndexes",
-  "version": "1.0.0",
-  "main": "index.js",
-  "dependencies": {
-    "@cloudbase/node-sdk": "latest"
-  }
+    "name":  "initDatabaseIndexes",
+    "version":  "1.0.0",
+    "main":  "index.js",
+    "dependencies":  {
+                         "wx-server-sdk":  "^3.0.1",
+                         "jsonwebtoken":  "^9.0.0"
+                     }
 }
