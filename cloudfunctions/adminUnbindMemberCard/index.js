@@ -11,6 +11,9 @@ const { db } = require('./_shared/db');
 exports.main = async (event = {}) => {
   try {
     const adminInfo = verifyAuth(event);
+    if (adminInfo.role !== 'super_admin') {
+      return error(AdminErrorCode.FORBIDDEN, '权限不足，仅超级管理员可执行此操作');
+    }
     const memberId = String(event.memberId || '').trim();
     const cardId = String(event.cardId || '').trim();
     if (!memberId) {

@@ -19,7 +19,10 @@ const { db } = require('./_shared/db');
  */
 exports.main = async (event = {}) => {
   try {
-    verifyAuth(event);
+    const adminInfo = verifyAuth(event);
+    if (adminInfo.role !== 'super_admin') {
+      return error(AdminErrorCode.FORBIDDEN, '权限不足，仅超级管理员可执行此操作');
+    }
 
     const { name, discountRate, minRechargeAmount } = event;
     const levelId = String(event.levelId || event.discountLevelId || '').trim();
