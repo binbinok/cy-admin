@@ -34,10 +34,10 @@ exports.main = async (event = {}) => {
       return error(AdminErrorCode.MEMBER_NOT_FOUND, '会员不存在');
     }
 
-    // 查询持卡信息
+    // 查询持卡信息（仅使用中的卡；已注销卡留档不展示）
     const { data: cards } = await db
       .collection('member_cards')
-      .where({ memberId })
+      .where({ memberId, status: 'active' })
       .limit(1)
       .get();
 

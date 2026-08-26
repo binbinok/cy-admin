@@ -2,9 +2,10 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   adminGetServiceList,
   adminGetServiceCategories,
-  adminCreateService,
-  adminUpdateService,
-  adminToggleServiceStatus,
+  adminGetServiceTemplates,
+  adminCreateServiceTemplate,
+  adminUpdateServiceTemplate,
+  adminToggleServiceTemplateStatus,
 } from '@/services/service';
 import http from '@/services/http';
 
@@ -19,6 +20,17 @@ vi.mock('@/stores/authStore', () => ({
 }));
 
 const mockPost = vi.mocked(http.post);
+
+const baseItemPayload = {
+  name: '基础款式',
+  inputType: 'single_select' as const,
+  options: ['基础款式'],
+  defaultPrice: 12800,
+  defaultDuration: 120,
+  discountable: true,
+  commissionable: true,
+  enabled: true,
+};
 
 describe('service service', () => {
   beforeEach(() => {
@@ -76,102 +88,120 @@ describe('service service', () => {
     });
   });
 
-  describe('adminCreateService', () => {
-    it('should POST to /invoke/adminCreateService with service data', async () => {
-      const serviceData = {
-        name: '精致美甲',
-        category: 'nail',
-        price: 12800,
-        duration: 90,
-        description: '包含基础护理和彩绘',
-      };
-      mockPost.mockResolvedValue({
-        data: {
-          success: true,
-          data: { _id: 's1', ...serviceData, active: true },
+  describe('adminGetServiceTemplates', () => {
+    it('should POST to /invoke/adminGetServiceTemplates with activeOnly param', async () => {
+      const templates = [
+        {
+          _id: 'tpl1',
+          categoryId: 'c1',
+          categoryName: '美甲',
+          defaultDuration: 120,
+          baseItems: [],
+          addonItems: [],
+          active: true,
+          sort: 10,
         },
+      ];
+      mockPost.mockResolvedValue({ data: { success: true, data: templates } });
+
+      const result = await adminGetServiceTemplates({ activeOnly: true });
+
+      expect(mockPost).toHaveBeenCalledWith('/invoke/adminGetServiceTemplates', {
+        activeOnly: true,
       });
-
-      const result = await adminCreateService(serviceData);
-
-      expect(mockPost).toHaveBeenCalledWith('/invoke/adminCreateService', serviceData);
       expect(result.success).toBe(true);
-      expect(result.data?.name).toBe('精致美甲');
+      expect(result.data?.[0].categoryName).toBe('美甲');
     });
 
-    it('should create service without optional description', async () => {
-      const serviceData = {
-        name: '睫毛嫁接',
-        category: 'eyelash',
-        price: 19800,
-        duration: 120,
+    it('should default to empty params', async () => {
+      mockPost.mockResolvedValue({ data: { success: true, data: [] } });
+
+      const result = await adminGetServiceTemplates();
+
+      expect(mockPost).toHaveBeenCalledWith('/invoke/adminGetServiceTemplates', {});
+      expect(result.data).toEqual([]);
+    });
+  });
+
+  describe('adminCreateServiceTemplate', () => {
+    it('should POST to /invoke/adminCreateServiceTemplate with template data', async () => {
+      const templateData = {
+        categoryId: 'c1',
+        defaultDuration: 120,
+        baseItems: [baseItemPayload],
+        addonItems: [],
       };
       mockPost.mockResolvedValue({
-        data: { success: true, data: { _id: 's2', ...serviceData, active: true } },
+        data: { success: true, data: { templateId: 'tpl1', message: '服务模板创建成功' } },
       });
 
-      const result = await adminCreateService(serviceData);
+      const result = await adminCreateServiceTemplate(templateData);
 
-      expect(mockPost).toHaveBeenCalledWith('/invoke/adminCreateService', serviceData);
+      expect(mockPost).toHaveBeenCalledWith('/invoke/adminCreateServiceTemplate', templateData);
+      expect(result.success).toBe(true);
+      expect(result.data?.templateId).toBe('tpl1');
+    });
+  });
+
+  describe('adminUpdateServiceTemplate', () => {
+    it('should POST to /invoke/adminUpdateServiceTemplate with templateId and data', async () => {
+      mockPost.mockResolvedValue({
+        data: { success: true, data: { templateId: 'tpl1', message: '服务模板更新成功' } },
+      });
+
+      const result = await adminUpdateServiceTemplate('tpl1', { defaultDuration: 90 });
+
+      expect(mockPost).toHaveBeenCalledWith('/invoke/adminUpdateServiceTemplate', {
+        templateId: 'tpl1',
+        defaultDuration: 90,
+      });
+      expect(result.success).toBe(true);
+    });
+
+    it('should support partial updates of baseItems', async () => {
+      mockPost.mockResolvedValue({
+        data: { success: true, data: { templateId: 'tpl1', message: '服务模板更新成功' } },
+      });
+
+      const result = await adminUpdateServiceTemplate('tpl1', { baseItems: [baseItemPayload] });
+
+      expect(mockPost).toHaveBeenCalledWith('/invoke/adminUpdateServiceTemplate', {
+        templateId: 'tpl1',
+        baseItems: [baseItemPayload],
+      });
       expect(result.success).toBe(true);
     });
   });
 
-  describe('adminUpdateService', () => {
-    it('should POST to /invoke/adminUpdateService with serviceId and data', async () => {
+  describe('adminToggleServiceTemplateStatus', () => {
+    it('should POST to /invoke/adminToggleServiceTemplateStatus to disable a template', async () => {
       mockPost.mockResolvedValue({
-        data: { success: true, data: { _id: 's1', name: '高级美甲', price: 15800 } },
+        data: { success: true, data: { templateId: 'tpl1', active: false, message: '模板已停用' } },
       });
 
-      const result = await adminUpdateService('s1', { name: '高级美甲', price: 15800 });
+      const result = await adminToggleServiceTemplateStatus('tpl1', false);
 
-      expect(mockPost).toHaveBeenCalledWith('/invoke/adminUpdateService', {
-        serviceId: 's1',
-        name: '高级美甲',
-        price: 15800,
-      });
-      expect(result.success).toBe(true);
-      expect(result.data?.name).toBe('高级美甲');
-    });
-
-    it('should support partial updates', async () => {
-      mockPost.mockResolvedValue({
-        data: { success: true, data: { _id: 's1', duration: 45 } },
-      });
-
-      const result = await adminUpdateService('s1', { duration: 45 });
-
-      expect(mockPost).toHaveBeenCalledWith('/invoke/adminUpdateService', {
-        serviceId: 's1',
-        duration: 45,
-      });
-      expect(result.success).toBe(true);
-    });
-  });
-
-  describe('adminToggleServiceStatus', () => {
-    it('should POST to /invoke/adminToggleServiceStatus to deactivate a service', async () => {
-      mockPost.mockResolvedValue({ data: { success: true } });
-
-      const result = await adminToggleServiceStatus('s1', false);
-
-      expect(mockPost).toHaveBeenCalledWith('/invoke/adminToggleServiceStatus', {
-        serviceId: 's1',
+      expect(mockPost).toHaveBeenCalledWith('/invoke/adminToggleServiceTemplateStatus', {
+        templateId: 'tpl1',
         active: false,
       });
       expect(result.success).toBe(true);
+      expect(result.data?.active).toBe(false);
     });
 
-    it('should POST to /invoke/adminToggleServiceStatus to activate a service', async () => {
-      mockPost.mockResolvedValue({ data: { success: true } });
+    it('should POST to /invoke/adminToggleServiceTemplateStatus to enable a template', async () => {
+      mockPost.mockResolvedValue({
+        data: { success: true, data: { templateId: 'tpl1', active: true, message: '模板已启用' } },
+      });
 
-      const result = await adminToggleServiceStatus('s1', true);
+      const result = await adminToggleServiceTemplateStatus('tpl1', true);
 
-      expect(mockPost).toHaveBeenCalledWith('/invoke/adminToggleServiceStatus', {
-        serviceId: 's1',
+      expect(mockPost).toHaveBeenCalledWith('/invoke/adminToggleServiceTemplateStatus', {
+        templateId: 'tpl1',
         active: true,
       });
       expect(result.success).toBe(true);
+      expect(result.data?.active).toBe(true);
     });
   });
 });

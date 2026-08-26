@@ -7,6 +7,7 @@ import {
   CF_GET_TECHNICIAN_PERFORMANCE,
   CF_GET_TECHNICIAN_INCOME_DETAIL,
   CF_CREATE_INCOME_RECORD,
+  CF_CREATE_SETTLEMENT,
   CF_EXPORT_PAYROLL,
 } from '@/constants/api';
 import type {
@@ -15,6 +16,8 @@ import type {
   TechnicianPerformance,
   CreateIncomeRecordPayload,
   CreateIncomeRecordResult,
+  CreateSettlementPayload,
+  SettlementResult,
 } from '@/types/finance';
 import type { ConsumptionRecord } from '@/types/member';
 import type { ApiResponse, PageResult } from '@/types/common';
@@ -106,6 +109,16 @@ export async function adminCreateIncomeRecord(
 ): Promise<ApiResponse<CreateIncomeRecordResult>> {
   const response = await http.post<ApiResponse<CreateIncomeRecordResult>>(
     `/invoke/${CF_CREATE_INCOME_RECORD}`,
+    { ...payload },
+  );
+  return response.data;
+}
+
+export async function adminCreateSettlement(
+  payload: CreateSettlementPayload,
+): Promise<ApiResponse<SettlementResult>> {
+  const response = await http.post<ApiResponse<SettlementResult>>(
+    `/invoke/${CF_CREATE_SETTLEMENT}`,
     { ...payload },
   );
   return response.data;

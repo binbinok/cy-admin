@@ -134,7 +134,7 @@ pnpm run test:coverage
 
 ### 开发环境代理
 
-`vite.config.ts` 在本地开发时将 `/api/invoke` 代理到 CloudBase HTTP 端点：
+`vite.config.ts` 在本地开发时将 `/api/cloud` 代理到 CloudBase HTTP 端点（与生产 Nginx 反向代理路径一致）：
 - 默认目标：`http://cloud1-1g7yz5w766dd366f-1394837822.ap-shanghai.app.tcloudbase.com`
 - 可通过环境变量覆盖：`VITE_CLOUDBASE_HTTP_ORIGIN`、`VITE_CLOUDBASE_HTTP_PREFIX`
 
@@ -249,9 +249,13 @@ pnpm run test:coverage     # 覆盖率报告
 ## 数据库
 
 - **类型**: CloudBase NoSQL（基于 MongoDB）。
-- **关键集合**: `admin_accounts`, `members`, `technicians`, `services`, `appointments`, `operation_logs`, `discount_levels`, `member_cards`。
+- **关键集合**: `admin_accounts`, `members`, `technicians`, `service_templates`, `appointments`, `operation_logs`, `discount_levels`, `member_cards`, `consumption_records`, `commission_records`。
+- **三层架构**（2026-08 重构）：
+  - 预约层：`appointments` 只承担排班（`categoryId` + `duration`），`serviceId` 字段废弃（历史数据保留只读）。
+  - 模板层：`service_templates` 是结算规则中心（默认预约时长、基础项目、附加项目、折扣/提成标志），替代旧 `services` 集合（停止写入，只读兜底）。
+  - 结算层：`adminCreateSettlement` 是收入确认唯一入口，`consumption_records` 扩展结算明细快照字段（baseItem/addons/customAddons/originalAmount/discountAmount/receivableAmount/adjustAmount/paymentDetails）。
 - 云函数内通过 `wx-server-sdk` 的 `db.collection()` 操作数据库。
-- 部署后需调用 `initDatabaseIndexes` 云函数初始化索引（详见 `DEPLOY.md`）。
+- 部署后需调用 `initDatabaseIndexes` 初始化索引，并调用 `initServiceTemplates` 初始化六大类服务模板种子（幂等，详见 `DEPLOY.md`）。
 
 ---
 
@@ -284,8 +288,10 @@ pnpm run test:coverage     # 覆盖率报告
 | `src/stores/authStore.ts` | 认证状态 + 本地存储持久化 + 无操作超时 |
 | `src/stores/uiStore.ts` | UI 状态（侧边栏折叠、当前菜单） |
 | `src/types/*.ts` | 按领域划分的 TypeScript 类型 |
+| `src/utils/settlement.ts` | 结算金额计算与入参校验（前端实时明细，与云函数 `_shared/settlement.js` 逻辑一致） |
+| `src/utils/appointment.ts` | 预约时段区间计算与冲突判定 |
 | `cloudfunctions/{name}/index.js` | 云函数入口 |
-| `cloudfunctions/{name}/_shared/` | 云函数共享模块（auth, db, response, errors, token） |
+| `cloudfunctions/{name}/_shared/` | 云函数共享模块（auth, db, response, errors, token, settlement） |
 | `cloudbaserc.json` | 云函数定义、运行时、超时、内存、环境变量 |
 | `vite.config.ts` | 开发代理、`@/` 别名、TypeScript 检查插件 |
 | `vitest.config.ts` | 测试配置、`@/` 别名、jsdom 环境 |
@@ -300,7 +306,7 @@ pnpm run test:coverage     # 覆盖率报告
 3. **没有 CI/CD 或 pre-commit hooks** — 质量门禁完全手动执行（`npm run lint`, `npm run test`）。
 4. **`noUnusedLocals` / `noUnusedParameters` 已启用，但 `build` 不含 `tsc`** — 生产构建不会拦截未使用变量；只有 dev 服务器的 checker 会报。不要让未使用变量溜进提交。
 5. **React Router v6** — 使用了 future flags：`v7_startTransition`、`v7_relativeSplatPath`。
-6. **环境变量覆盖**: `VITE_CLOUDBASE_ENV_ID` 可覆盖默认环境 ID。
+6. **环境变量覆盖**: `VITE_CLOUDBASE_ENV_ID` 可覆盖默认环境 ID；`VITE_CLOUDBASE_API_PREFIX` 可覆盖云函数 API 代理前缀（生产默认 `/api/cloud`，经 Nginx 同源反代避免跨域；显式置空则直连 CloudBase 域名）。
 7. **云函数 runtime 创建后不可更改** — 当前统一使用 `Nodejs18.15`。
 
 ---

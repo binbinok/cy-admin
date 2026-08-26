@@ -6,10 +6,20 @@ const { AdminErrorCode } = require('./_shared/errors');
 const { db, _ } = require('./_shared/db');
 
 /**
+ * 手机号脱敏：中间 4 位以 * 展示（如 13812345678 → 138****5678）
+ * @param {string} phone
+ * @returns {string}
+ */
+function maskPhone(phone) {
+  return String(phone).replace(/^(\d{3})\d{4}(\d{4})$/, '$1****$2');
+}
+
+/**
  * 获取会员列表（含搜索/筛选）
  * - 支持关键词模糊匹配（昵称/手机号/会员编号）
  * - 支持按会员等级筛选
  * - 分页
+ * - 手机号在接口层脱敏返回（关键词搜索仍基于原始数据）
  *
  * @param {{ keyword?: string, level?: string, page?: number, pageSize?: number }} event
  */
@@ -63,7 +73,13 @@ exports.main = async (event = {}) => {
       .limit(pageSize)
       .get();
 
-    return success({ list, total });
+    // 接口层脱敏：手机号中间 4 位以 * 展示
+    const maskedList = (list || []).map((m) => ({
+      ...m,
+      phone: m.phone ? maskPhone(m.phone) : m.phone,
+    }));
+
+    return success({ list: maskedList, total });
   } catch (err) {
     if (err.code) {
       return error(err.code, err.message);

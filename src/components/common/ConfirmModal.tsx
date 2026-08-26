@@ -21,7 +21,7 @@ export default function ConfirmModal(props: ConfirmModalProps) {
       onCancel={props.onCancel}
       okText="确认"
       cancelText="取消"
-      destroyOnClose
+      destroyOnHidden
     >
       <Text>{props.content}</Text>
     </Modal>

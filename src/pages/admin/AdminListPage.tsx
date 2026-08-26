@@ -208,10 +208,6 @@ export default function AdminListPage() {
   // Handle change password form submit
   const handlePasswordSubmit = useCallback(() => {
     passwordForm.validateFields().then((values) => {
-      if (values.newPassword.length < 8 || values.newPassword.length > 32) {
-        message.error('新密码长度必须为 8–32 个字符');
-        return;
-      }
       passwordMutation.mutate({
         currentPassword: values.currentPassword,
         newPassword: values.newPassword,
@@ -393,7 +389,7 @@ export default function AdminListPage() {
         onCancel={handleCreateCancel}
         confirmLoading={createMutation.isPending}
         okButtonProps={{ disabled: createMutation.isPending }}
-        destroyOnClose
+        destroyOnHidden
       >
         <Form
           form={createForm}
@@ -442,7 +438,7 @@ export default function AdminListPage() {
         onCancel={handlePasswordCancel}
         confirmLoading={passwordMutation.isPending}
         okButtonProps={{ disabled: passwordMutation.isPending }}
-        destroyOnClose
+        destroyOnHidden
       >
         <Form
           form={passwordForm}
@@ -467,14 +463,12 @@ export default function AdminListPage() {
             label="新密码"
             rules={[
               { required: true, message: '请输入新密码' },
-              { min: 8, message: '新密码长度至少 8 个字符' },
-              { max: 32, message: '新密码长度最多 32 个字符' },
             ]}
           >
             <Input
               type="password"
               autoComplete="new-password"
-              placeholder="请输入新密码（8–32 字符）"
+              placeholder="请输入新密码"
             />
           </Form.Item>
         </Form>

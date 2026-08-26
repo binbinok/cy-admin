@@ -1,5 +1,5 @@
 {
-  "name": "adminUnbindMemberCard",
+  "name": "adminCreateMemberCard",
   "version": "1.0.0",
   "private": true,
   "main": "index.js",

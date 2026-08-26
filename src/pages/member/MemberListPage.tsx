@@ -248,7 +248,7 @@ export default function MemberListPage() {
         onOk={handleSubmitCreate}
         onCancel={handleCloseCreateModal}
         confirmLoading={createSubmitting}
-        destroyOnClose
+        destroyOnHidden
       >
         <Form form={createForm} layout="vertical">
           <Form.Item

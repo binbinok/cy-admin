@@ -4,16 +4,41 @@ const { verifyAuth } = require('./_shared/auth');
 const { success, error } = require('./_shared/response');
 const { AdminErrorCode } = require('./_shared/errors');
 const { db, _ } = require('./_shared/db');
+const crypto = require('crypto');
+
+/** 编号字符集：去除易混淆字符 0/O/1/I/L，共 32 个 */
+const ID_CHARSET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+const ID_LENGTH = 6;
+const ID_MAX_RETRY = 5;
 
 /**
- * 生成预约编号
+ * 生成 6 位随机预约编号（字母+数字）
  * @returns {string}
  */
 function generateAppointmentId() {
-  const now = new Date();
-  const timestamp = now.getTime().toString(36).toUpperCase();
-  const random = Math.random().toString(36).substring(2, 6).toUpperCase();
-  return `APT${timestamp}${random}`;
+  let id = '';
+  for (let i = 0; i < ID_LENGTH; i += 1) {
+    id += ID_CHARSET[crypto.randomInt(ID_CHARSET.length)];
+  }
+  return id;
+}
+
+/**
+ * 生成全局唯一预约编号：查重冲突时自动重试
+ * @returns {Promise<string>}
+ */
+async function generateUniqueAppointmentId() {
+  for (let attempt = 0; attempt < ID_MAX_RETRY; attempt += 1) {
+    const candidate = generateAppointmentId();
+    const { total } = await db
+      .collection('appointments')
+      .where({ appointmentId: candidate })
+      .count();
+    if (total === 0) {
+      return candidate;
+    }
+  }
+  throw new Error('预约编号生成冲突，请重试');
 }
 
 /**
@@ -27,13 +52,49 @@ function parseTimeToMinutes(timeStr) {
 }
 
 /**
- * 管理员创建预约
+ * 加载服务大类与启用模板，解析占用时长（默认取模板，允许手动覆盖）
+ * @param {string} categoryId
+ * @param {number | undefined} durationInput
+ * @returns {Promise<{ category: object, duration: number }>}
+ */
+async function resolveCategoryAndDuration(categoryId, durationInput) {
+  const { data: categoryList } = await db
+    .collection('service_categories')
+    .where({ _id: categoryId, active: true })
+    .limit(1)
+    .get();
+  const category = categoryList[0];
+  if (!category) {
+    throw Object.assign(new Error('服务大类不存在或已停用'), { code: AdminErrorCode.VALIDATION_ERROR });
+  }
+  const { data: templateList } = await db
+    .collection('service_templates')
+    .where({ categoryId, active: true })
+    .limit(1)
+    .get();
+  const template = templateList[0];
+  if (!template) {
+    throw Object.assign(new Error('该服务大类未配置服务模板或模板已停用'), { code: AdminErrorCode.VALIDATION_ERROR });
+  }
+  if (durationInput === undefined || durationInput === null || durationInput === '') {
+    return { category, duration: Number(template.defaultDuration) || 60 };
+  }
+  const duration = Number(durationInput);
+  if (!Number.isInteger(duration) || duration <= 0) {
+    throw Object.assign(new Error('时长必须为大于 0 的整数'), { code: AdminErrorCode.VALIDATION_ERROR });
+  }
+  return { category, duration };
+}
+
+/**
+ * 管理员创建预约（预约层：仅排班，不绑定具体服务项）
  *
  * @param {{
  *   memberId?: string,
  *   guestName?: string,
  *   guestPhone?: string,
- *   serviceId: string,
+ *   categoryId: string,
+ *   duration?: number,
  *   technicianId: string,
  *   appointmentDate: string,
  *   appointmentTime: string,
@@ -49,20 +110,20 @@ exports.main = async (event = {}) => {
     const memberId = rawMemberId ? String(rawMemberId).trim() : '';
     const guestName = String(event.guestName || '').trim();
     const guestPhone = String(event.guestPhone || '').trim();
-    const serviceId = String(event.serviceId || '').trim();
+    const categoryId = String(event.categoryId || '').trim();
     const technicianId = String(event.technicianId || '').trim();
     const appointmentDate = String(event.appointmentDate || '').trim();
     const appointmentTime = String(event.appointmentTime || '').trim();
     const note = String(event.note || '').trim();
 
     if (!memberId && !guestName) {
-      return error(AdminErrorCode.VALIDATION_ERROR, '请选择会员或输入散客姓名');
+      return error(AdminErrorCode.VALIDATION_ERROR, '请选择会员或填写散客姓名');
     }
     if (guestPhone && !/^1[3-9]\d{9}$/.test(guestPhone)) {
       return error(AdminErrorCode.VALIDATION_ERROR, '散客手机号格式不正确');
     }
-    if (!serviceId) {
-      return error(AdminErrorCode.VALIDATION_ERROR, '服务项目不能为空');
+    if (!categoryId) {
+      return error(AdminErrorCode.VALIDATION_ERROR, '服务大类不能为空');
     }
     if (!technicianId) {
       return error(AdminErrorCode.VALIDATION_ERROR, '技师不能为空');
@@ -96,13 +157,13 @@ exports.main = async (event = {}) => {
       }
     }
 
-    // 3. 验证服务项目是否存在且上架
-    const { data: serviceDoc } = await db.collection('services').doc(serviceId).get();
-    if (!serviceDoc) {
-      return error(AdminErrorCode.NOT_FOUND, '服务项目不存在');
-    }
-    if (serviceDoc.active === false) {
-      return error(AdminErrorCode.VALIDATION_ERROR, '该服务项目已下架');
+    // 3. 验证服务大类与模板，解析占用时长
+    let category;
+    let duration;
+    try {
+      ({ category, duration } = await resolveCategoryAndDuration(categoryId, event.duration));
+    } catch (err) {
+      return error(err.code || AdminErrorCode.VALIDATION_ERROR, err.message);
     }
 
     // 4. 验证技师是否存在且在职
@@ -114,10 +175,9 @@ exports.main = async (event = {}) => {
       return error(AdminErrorCode.VALIDATION_ERROR, '该技师当前休息中，无法预约');
     }
 
-    // 5. 时间冲突校验
-    const serviceDuration = Number(serviceDoc.duration) || 60; // 默认60分钟
+    // 5. 时段冲突校验：按 [appointmentTime, appointmentTime + duration) 区间计算
     const newStartMinutes = parseTimeToMinutes(appointmentTime);
-    const newEndMinutes = newStartMinutes + serviceDuration;
+    const newEndMinutes = newStartMinutes + duration;
 
     // 查询该技师在预约日期的所有未取消预约
     const { data: existingAppointments } = await db.collection('appointments')
@@ -130,8 +190,9 @@ exports.main = async (event = {}) => {
 
     for (const apt of existingAppointments) {
       const existStartMinutes = parseTimeToMinutes(apt.appointmentTime);
-      const existServiceDuration = Number(apt.serviceDuration) || 60;
-      const existEndMinutes = existStartMinutes + existServiceDuration;
+      // 历史数据兜底：优先取 duration，其次旧字段 serviceDuration，默认 60 分钟
+      const existDuration = Number(apt.duration) || Number(apt.serviceDuration) || 60;
+      const existEndMinutes = existStartMinutes + existDuration;
 
       // 重叠判断：(StartA < EndB) && (EndA > StartB)
       if (newStartMinutes < existEndMinutes && newEndMinutes > existStartMinutes) {
@@ -139,9 +200,9 @@ exports.main = async (event = {}) => {
       }
     }
 
-    // 6. 创建预约记录
+    // 6. 创建预约记录（仅排班信息：顾客 / 技师 / 服务大类 / 日期时间 / 时长 / 备注）
     const now = new Date();
-    const appointmentId = generateAppointmentId();
+    const appointmentId = await generateUniqueAppointmentId();
 
     const appointmentData = {
       appointmentId,
@@ -150,9 +211,9 @@ exports.main = async (event = {}) => {
       memberPhone: member ? (member.phone || '') : '',
       guestName: memberId ? '' : guestName,
       guestPhone: memberId ? '' : guestPhone,
-      serviceId,
-      serviceName: serviceDoc.name || '',
-      serviceDuration,
+      categoryId,
+      categoryName: category.name || '',
+      duration,
       technicianId,
       technicianName: technicianDoc.name || '',
       appointmentDate,
@@ -164,7 +225,7 @@ exports.main = async (event = {}) => {
       updatedAt: now,
     };
 
-    const addResult = await db.collection('appointments').add({
+    await db.collection('appointments').add({
       data: appointmentData,
     });
 
@@ -177,8 +238,8 @@ exports.main = async (event = {}) => {
         targetType: 'appointment',
         targetId: appointmentId,
         detail: memberId
-          ? `创建预约 ${appointmentId}，会员 ${member.nickName || ''}，技师 ${technicianDoc.name || ''}，时间 ${appointmentDate} ${appointmentTime}`
-          : `创建预约 ${appointmentId}，散客 ${guestName}${guestPhone ? `（${guestPhone}）` : ''}，技师 ${technicianDoc.name || ''}，时间 ${appointmentDate} ${appointmentTime}`,
+          ? `创建预约 ${appointmentId}，会员 ${member.nickName || ''}，大类 ${category.name || ''}，技师 ${technicianDoc.name || ''}，时间 ${appointmentDate} ${appointmentTime}，时长 ${duration} 分钟`
+          : `创建预约 ${appointmentId}，散客 ${guestName}${guestPhone ? `（${guestPhone}）` : ''}，大类 ${category.name || ''}，技师 ${technicianDoc.name || ''}，时间 ${appointmentDate} ${appointmentTime}，时长 ${duration} 分钟`,
         createdAt: now,
       },
     });
@@ -186,6 +247,7 @@ exports.main = async (event = {}) => {
     return success({
       appointmentId,
       status: 'pending',
+      duration,
       message: '预约创建成功',
     });
   } catch (err) {

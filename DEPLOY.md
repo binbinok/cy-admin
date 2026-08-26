@@ -32,15 +32,25 @@ tcb fn deploy adminCreateMember --envId cloud1-1g7yz5w766dd366f
 - 云函数 runtime 为 `Nodejs18.15`，创建后不可更改
 - 部署前确保 `cloudbaserc.json` 配置正确
 
-### 3. 初始化数据库索引
+### 3. 初始化数据库索引与服务模板
 
-部署完成后，调用 `initDatabaseIndexes` 云函数创建索引：
+部署完成后，依次调用以下云函数完成初始化：
 
 ```bash
-# 通过 CloudBase 控制台或 SDK 调用
+# 1. 通过 CloudBase 控制台或 SDK 调用
 # 函数名: initDatabaseIndexes
 # 参数: {}
+# 说明: 记录需手动创建的索引（含 service_templates.categoryId、consumption_records.categoryId）
+
+# 2. 初始化服务模板种子数据（幂等，已存在模板的分类自动跳过）
+# 函数名: initServiceTemplates
+# 参数: {}
+# 说明: 写入六大类模板（美甲/美足/美睫/手护/脚护/修眉）及款式/附加项目种子
 ```
+
+> 注意：`initServiceTemplates` 依赖 `service_categories` 中已存在的六大类分类
+> （nail / foot-nail / lash / hand-care / foot-care / brow-shaping），
+> 可先调用 `adminGetServiceCategories` 触发默认分类的幂等初始化。
 
 ### 4. 部署前端静态网站
 
@@ -65,12 +75,19 @@ tcb hosting deploy dist ./cy-admin -e cloud1-1g7yz5w766dd366f
 
 ### vite.config.ts
 - `base: './'` - 使用相对路径，适配静态托管
-- 开发时代理 `/api/invoke` 到云函数
+- 开发时代理 `/api/cloud` 到云函数（与生产 Nginx 反向代理路径一致）
 
 ### cloudbaserc.json
-- 定义了 60+ 个云函数
+- 定义了 60+ 个云函数（含服务模板 CRUD 与统一结算入口 `adminCreateSettlement`）
 - 所有函数使用 `Nodejs18.15` runtime
 - JWT_SECRET 通过环境变量注入
+
+### 服务模板与结算（三层架构）
+- `service_templates` 集合替代旧 `services` 服务项体系（旧集合只读保留供历史数据兜底）
+- 新增云函数：`adminGetServiceTemplates` / `adminCreateServiceTemplate` / `adminUpdateServiceTemplate` / `adminToggleServiceTemplateStatus` / `initServiceTemplates` / `adminCreateSettlement`
+- 已废弃（返回迁移提示，不再写入 `services`）：`adminCreateService` / `adminUpdateService` / `adminToggleServiceStatus`
+- `adminCreateIncomeRecord` 已废弃：前端收入录入改调 `adminCreateSettlement`，该函数保留一个版本周期后可从 `cloudbaserc.json` 移除
+- 预约创建（`adminCreateAppointment`）入参由 `serviceId` 改为 `categoryId` + `duration`（默认取模板 `defaultDuration`）
 
 ### App.tsx
 - 使用 `HashRouter` 替代 `BrowserRouter`

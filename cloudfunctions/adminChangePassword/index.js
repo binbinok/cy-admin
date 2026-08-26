@@ -25,10 +25,6 @@ exports.main = async (event = {}) => {
       return error(AdminErrorCode.VALIDATION_ERROR, '参数不完整');
     }
 
-    if (newPassword.length < 8 || newPassword.length > 32) {
-      return error(AdminErrorCode.VALIDATION_ERROR, '新密码长度必须为 8–32 字符');
-    }
-
     // 查询当前管理员
     const { data: accounts } = await db
       .collection('admin_accounts')

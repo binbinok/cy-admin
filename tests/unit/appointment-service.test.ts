@@ -114,28 +114,46 @@ describe('appointment service', () => {
   });
 
   describe('adminCompleteService', () => {
-    it('should POST with appointmentId and actualAmount', async () => {
-      mockPost.mockResolvedValue({ data: { success: true } });
+    const settlementPayload = {
+      appointmentId: 'a1',
+      technicianId: 't1',
+      serviceTime: '2026-05-20T10:00:00.000Z',
+      categoryId: 'c1',
+      baseItemId: 'item_1',
+      baseItemPrice: 9900,
+      paymentDetails: [{ paymentType: 'cash', amount: 9900 }],
+    };
 
-      const result = await adminCompleteService('a1', 9900);
+    it('should POST settlement payload with appointmentId', async () => {
+      mockPost.mockResolvedValue({
+        data: {
+          success: true,
+          data: { consumptionId: 'cr1', amount: 9900, pointsEarned: 990 },
+        },
+      });
+
+      const result = await adminCompleteService(settlementPayload);
 
       expect(mockPost).toHaveBeenCalledWith(
         '/invoke/adminCompleteService',
-        { appointmentId: 'a1', actualAmount: 9900 },
+        settlementPayload,
       );
       expect(result.success).toBe(true);
+      expect(result.data?.consumptionId).toBe('cr1');
     });
 
-    it('should allow actualAmount of 0 for free service', async () => {
-      mockPost.mockResolvedValue({ data: { success: true } });
+    it('should propagate validation failure from settlement module', async () => {
+      mockPost.mockResolvedValue({
+        data: {
+          success: false,
+          error: { code: 'VALIDATION_ERROR', message: '支付总额必须等于实收金额' },
+        },
+      });
 
-      const result = await adminCompleteService('a1', 0);
+      const result = await adminCompleteService(settlementPayload);
 
-      expect(mockPost).toHaveBeenCalledWith(
-        '/invoke/adminCompleteService',
-        { appointmentId: 'a1', actualAmount: 0 },
-      );
-      expect(result.success).toBe(true);
+      expect(result.success).toBe(false);
+      expect(result.error?.message).toBe('支付总额必须等于实收金额');
     });
   });
 
@@ -162,7 +180,8 @@ describe('appointment service', () => {
   describe('adminCreateAppointment', () => {
     const createParams = {
       memberId: 'm1',
-      serviceId: 's1',
+      categoryId: 'c1',
+      duration: 120,
       technicianId: 't1',
       appointmentDate: '2026-05-20',
       appointmentTime: '10:00',
@@ -173,7 +192,7 @@ describe('appointment service', () => {
       mockPost.mockResolvedValue({
         data: {
           success: true,
-          data: { appointmentId: 'APT20260520001', status: 'pending', message: '创建成功' },
+          data: { appointmentId: 'APT20260520001', status: 'pending', duration: 120, message: '创建成功' },
         },
       });
 
@@ -186,19 +205,20 @@ describe('appointment service', () => {
       expect(result.success).toBe(true);
       expect(result.data?.appointmentId).toBe('APT20260520001');
       expect(result.data?.status).toBe('pending');
+      expect(result.data?.duration).toBe(120);
     });
 
-    it('should omit note when not provided', async () => {
+    it('should omit note and use template default duration when not provided', async () => {
       mockPost.mockResolvedValue({
         data: {
           success: true,
-          data: { appointmentId: 'APT20260520002', status: 'pending', message: '创建成功' },
+          data: { appointmentId: 'APT20260520002', status: 'pending', duration: 60, message: '创建成功' },
         },
       });
 
       const paramsWithoutNote = {
         memberId: createParams.memberId,
-        serviceId: createParams.serviceId,
+        categoryId: createParams.categoryId,
         technicianId: createParams.technicianId,
         appointmentDate: createParams.appointmentDate,
         appointmentTime: createParams.appointmentTime,

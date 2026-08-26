@@ -279,27 +279,40 @@ describe('AppointmentListPage', () => {
     });
   });
 
-  // 6. Complete service modal with amount input
+  // 6. Complete service via settlement payload
   describe('complete service', () => {
-    it('should call adminCompleteService with _id and amount in fen', async () => {
+    const settlementPayload = {
+      appointmentId: 'a1',
+      technicianId: 't1',
+      serviceTime: '2026-05-20T10:00:00.000Z',
+      categoryId: 'c1',
+      baseItemId: 'item_1',
+      baseItemPrice: 9950,
+      paymentDetails: [{ paymentType: 'cash', amount: 9950 }],
+    };
+
+    it('should call adminCompleteService with settlement payload', async () => {
       mockAdminCompleteService.mockResolvedValue({ success: true });
 
       const { adminCompleteService } = await import('@/services/appointment');
-      // 99.50 yuan = 9950 fen
-      const amountInFen = Math.round(99.5 * 100);
-      const res = await adminCompleteService('a1', amountInFen);
+      const res = await adminCompleteService(settlementPayload);
 
-      expect(mockAdminCompleteService).toHaveBeenCalledWith('a1', 9950);
+      expect(mockAdminCompleteService).toHaveBeenCalledWith(settlementPayload);
       expect(res.success).toBe(true);
     });
 
-    it('should allow zero amount (free service)', async () => {
+    it('should allow zero-amount settlement (free service)', async () => {
       mockAdminCompleteService.mockResolvedValue({ success: true });
 
       const { adminCompleteService } = await import('@/services/appointment');
-      const res = await adminCompleteService('a1', 0);
+      const freePayload = {
+        ...settlementPayload,
+        baseItemPrice: 0,
+        paymentDetails: [{ paymentType: 'cash', amount: 1 }],
+      };
+      const res = await adminCompleteService(freePayload);
 
-      expect(mockAdminCompleteService).toHaveBeenCalledWith('a1', 0);
+      expect(mockAdminCompleteService).toHaveBeenCalledWith(freePayload);
       expect(res.success).toBe(true);
     });
 
@@ -492,7 +505,15 @@ describe('AppointmentListPage', () => {
       );
 
       await expect(
-        adminCompleteService('a1', 5000),
+        adminCompleteService({
+          appointmentId: 'a1',
+          technicianId: 't1',
+          serviceTime: '2026-05-20T10:00:00.000Z',
+          categoryId: 'c1',
+          baseItemId: 'item_1',
+          baseItemPrice: 5000,
+          paymentDetails: [{ paymentType: 'cash', amount: 5000 }],
+        }),
       ).rejects.toThrow('Timeout');
     });
   });

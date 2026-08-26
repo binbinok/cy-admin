@@ -22,12 +22,40 @@ interface HttpClient {
 const cloudbaseEnvId: string =
   (import.meta.env.VITE_CLOUDBASE_ENV_ID as string | undefined) || DEFAULT_CLOUDBASE_ENV_ID;
 
+/**
+ * 云函数 API 同源代理前缀。生产环境默认经 Nginx 反向代理（/api/cloud/）访问，
+ * 规避浏览器对 tcb-api.tencentcloudapi.com 的跨域拦截；显式置空可回退为直连。
+ */
+const cloudbaseApiPrefix: string =
+  (import.meta.env.VITE_CLOUDBASE_API_PREFIX as string | undefined) ??
+  (import.meta.env.PROD ? '/api/cloud' : '');
+
 const app = cloudbase.init({
   env: cloudbaseEnvId,
 });
-const auth = app.auth({
-  persistence: 'session',
-});
+/**
+ * js-sdk 运行时提供 registerEndPoint 用于覆盖 API 端点，但 App 类型未声明
+ */
+interface CloudbaseAppWithEndPoint {
+  registerEndPoint: (url: string) => void;
+}
+
+if (cloudbaseApiPrefix) {
+  (app as unknown as CloudbaseAppWithEndPoint).registerEndPoint(
+    `${window.location.origin}${cloudbaseApiPrefix}/web`,
+  );
+}
+
+interface AuthInitOptions {
+  persistence: 'session';
+  apiPath?: string;
+}
+
+const authOptions: AuthInitOptions = { persistence: 'session' };
+if (cloudbaseApiPrefix) {
+  authOptions.apiPath = `${cloudbaseApiPrefix}/auth`;
+}
+const auth = app.auth(authOptions as { persistence: 'session' });
 let authReadyPromise: Promise<void> | null = null;
 
 /**

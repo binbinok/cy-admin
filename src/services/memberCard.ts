@@ -8,9 +8,9 @@ import {
   CF_RECHARGE_CARD,
   CF_GET_CARD_RECHARGE_RECORDS,
   CF_DEDUCT_CARD_BALANCE,
-  CF_BIND_MEMBER_CARD,
-  CF_UNBIND_MEMBER_CARD,
   CF_GET_MEMBER_CARD_ASSOCIATION,
+  CF_CREATE_MEMBER_CARD,
+  CF_CANCEL_MEMBER_CARD,
 } from '@/constants/api';
 import type { ApiResponse, PageResult } from '@/types/common';
 import type { CardRechargeRecord, MemberCard } from '@/types/member';
@@ -81,9 +81,9 @@ export async function adminAssignDiscountLevel(
 }
 
 export async function adminRechargeCard(
-  params: { cardId: string; amount: number },
-): Promise<ApiResponse<{ balance: number }>> {
-  const response = await http.post<ApiResponse<{ balance: number }>>(
+  params: { memberId: string; amount: number },
+): Promise<ApiResponse<{ card: MemberCard; rechargeRecord: CardRechargeRecord }>> {
+  const response = await http.post<ApiResponse<{ card: MemberCard; rechargeRecord: CardRechargeRecord }>>(
     `/invoke/${CF_RECHARGE_CARD}`,
     params,
   );
@@ -109,20 +109,20 @@ export async function adminDeductCardBalance(
   );
   return response.data;
 }
-export async function adminBindMemberCard(
-  params: { memberId: string; cardId: string },
+export async function adminCancelMemberCard(
+  params: { memberId: string; reason: string; phoneLast4: string; password: string; balanceAction?: 'refunded_offline' | 'cleared' },
 ): Promise<ApiResponse<MemberCard>> {
   const response = await http.post<ApiResponse<MemberCard>>(
-    `/invoke/${CF_BIND_MEMBER_CARD}`,
+    `/invoke/${CF_CANCEL_MEMBER_CARD}`,
     { ...params },
   );
   return response.data;
 }
-export async function adminUnbindMemberCard(
-  params: { memberId: string; cardId?: string },
+export async function adminCreateMemberCard(
+  params: { memberId: string; discountLevelId: string; amount: number },
 ): Promise<ApiResponse<MemberCard>> {
   const response = await http.post<ApiResponse<MemberCard>>(
-    `/invoke/${CF_UNBIND_MEMBER_CARD}`,
+    `/invoke/${CF_CREATE_MEMBER_CARD}`,
     { ...params },
   );
   return response.data;

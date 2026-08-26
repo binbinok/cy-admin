@@ -348,7 +348,7 @@ export default function TechnicianListPage() {
         onCancel={handleCreateCancel}
         confirmLoading={createMutation.isPending}
         okButtonProps={{ disabled: createMutation.isPending }}
-        destroyOnClose
+        destroyOnHidden
       >
         <Form
           form={createForm}

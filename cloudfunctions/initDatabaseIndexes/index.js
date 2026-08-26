@@ -39,6 +39,12 @@ exports.main = async (event = {}) => {
         fields: { technicianId: 1, appointmentDate: 1 },
       },
       {
+        collection: 'appointments',
+        name: 'appointmentId_1',
+        fields: { appointmentId: 1 },
+        unique: true,
+      },
+      {
         collection: 'members',
         name: 'phone_1',
         fields: { phone: 1 },
@@ -46,9 +52,26 @@ exports.main = async (event = {}) => {
         sparse: true,
       },
       {
+        collection: 'members',
+        name: 'memberId_1',
+        fields: { memberId: 1 },
+        unique: true,
+      },
+      {
         collection: 'operation_logs',
         name: 'adminId_1_createdAt_-1',
         fields: { adminId: 1, createdAt: -1 },
+      },
+      {
+        collection: 'service_templates',
+        name: 'categoryId_1',
+        fields: { categoryId: 1 },
+        unique: true,
+      },
+      {
+        collection: 'consumption_records',
+        name: 'categoryId_1_createdAt_-1',
+        fields: { categoryId: 1, createdAt: -1 },
       },
     ];
 

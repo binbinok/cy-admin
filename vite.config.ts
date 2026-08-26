@@ -27,13 +27,13 @@ export default defineConfig(({ mode }) => {
     server: {
       port: 3000,
       proxy: {
-        '/api/invoke': {
+        '/api/cloud': {
           target: cloudbaseHttpOrigin,
           changeOrigin: true,
           secure: true,
           rewrite: (pathValue: string): string => {
-            const functionPath = pathValue.replace(/^\/api\/invoke/, '');
-            return `${cloudbasePathBase}${functionPath}`;
+            const apiPath = pathValue.replace(/^\/api\/cloud/, '');
+            return `${cloudbasePathBase}${apiPath}`;
           },
         },
       },

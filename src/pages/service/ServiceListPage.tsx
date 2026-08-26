@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import type { ReactNode } from 'react';
 import {
   Table,
   Button,
@@ -8,171 +9,143 @@ import {
   Input,
   InputNumber,
   Select,
+  Checkbox,
   Typography,
   Space,
   message,
 } from 'antd';
-import { PlusOutlined, SearchOutlined } from '@ant-design/icons';
+import { PlusOutlined, MinusCircleOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import {
-  adminGetServiceList,
+  adminGetServiceTemplates,
   adminGetServiceCategories,
-  adminCreateService,
-  adminUpdateService,
-  adminToggleServiceStatus,
+  adminCreateServiceTemplate,
+  adminUpdateServiceTemplate,
+  adminToggleServiceTemplateStatus,
 } from '@/services/service';
+import type { TemplateItemPayload } from '@/services/service';
 import { useAuthStore } from '@/stores/authStore';
 import { formatAmount } from '@/utils/format';
-import { SEARCH_DEBOUNCE_MS } from '@/constants/business';
-import type { Service, ServiceCategory } from '@/types/service';
-import type { PageResult } from '@/types/common';
+import type { ServiceTemplate, ServiceCategory, TemplateItem } from '@/types/service';
 
 const { Title } = Typography;
-const { TextArea } = Input;
-const PAGE_SIZE = 10;
 
-const DEFAULT_CATEGORY_OPTIONS: Array<{ value: string; label: string }> = [
-  { value: '美甲', label: '美甲' },
-  { value: '美足', label: '美足' },
-  { value: '卸甲', label: '卸甲' },
-  { value: '手护', label: '手护' },
-  { value: '脚护', label: '脚护' },
-  { value: '前置处理', label: '前置处理' },
-  { value: '美睫', label: '美睫' },
-  { value: '卸睫', label: '卸睫' },
-  { value: '修眉', label: '修眉' },
-  { value: '纹眉', label: '纹眉' },
-  { value: '纹唇', label: '纹唇' },
-  { value: '美瞳线', label: '美瞳线' },
-  { value: '医美', label: '医美' },
-];
+interface TemplateItemFormValue {
+  itemId?: string;
+  name: string;
+  price: number;
+  discountable: boolean;
+  commissionable: boolean;
+}
+
+interface TemplateFormValues {
+  categoryId: string;
+  defaultDuration: number;
+  baseItems: TemplateItemFormValue[];
+  addonItems: TemplateItemFormValue[];
+}
+
+const toFormItem = (item: TemplateItem): TemplateItemFormValue => ({
+  itemId: item.itemId,
+  name: item.name,
+  price: item.defaultPrice / 100,
+  discountable: item.discountable !== false,
+  commissionable: item.commissionable !== false,
+});
+
+const toPayloadItem = (
+  item: TemplateItemFormValue,
+  defaultDuration: number,
+): TemplateItemPayload => ({
+  itemId: item.itemId,
+  name: item.name,
+  inputType: 'single_select',
+  options: [item.name],
+  defaultPrice: Math.round(item.price * 100),
+  defaultDuration,
+  discountable: item.discountable !== false,
+  commissionable: item.commissionable !== false,
+  enabled: true,
+});
+
+const NEW_ITEM: TemplateItemFormValue = {
+  name: '',
+  price: 0,
+  discountable: true,
+  commissionable: true,
+};
+
+const NEW_ADDON: TemplateItemFormValue = {
+  name: '',
+  price: 0,
+  discountable: true,
+  commissionable: false,
+};
 
 export default function ServiceListPage() {
-  const [page, setPage] = useState(1);
   const isSuperAdmin = useAuthStore((s) => s.adminInfo?.role === 'super_admin');
 
-  const [keyword, setKeyword] = useState('');
-  const [debouncedKeyword, setDebouncedKeyword] = useState('');
-  const [category, setCategory] = useState<string | undefined>(undefined);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const [serviceList, setServiceList] = useState<Service[]>([]);
+  const [templates, setTemplates] = useState<ServiceTemplate[]>([]);
   const [categoryList, setCategoryList] = useState<ServiceCategory[]>([]);
-  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
 
   const [modalOpen, setModalOpen] = useState(false);
-  const [editingService, setEditingService] = useState<Service | null>(null);
+  const [editingTemplate, setEditingTemplate] = useState<ServiceTemplate | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [form] = Form.useForm();
+  const [form] = Form.useForm<TemplateFormValues>();
 
-  const categoryOptions = useMemo<Array<{ value: string; label: string }>>(() => {
-    if (categoryList.length === 0) {
-      return DEFAULT_CATEGORY_OPTIONS;
+  const fetchTemplates = useCallback(async (): Promise<void> => {
+    setLoading(true);
+    try {
+      const res = await adminGetServiceTemplates();
+      if (res.success) {
+        setTemplates(res.data ?? []);
+      }
+    } catch {
+      message.error('获取服务模板列表失败');
+    } finally {
+      setLoading(false);
     }
-    return categoryList.map((item: ServiceCategory) => ({
-      value: item.name,
-      label: item.name,
-    }));
-  }, [categoryList]);
-  const categoryLabelMap = useMemo<Record<string, string>>(() => {
-    if (categoryList.length === 0) {
-      return DEFAULT_CATEGORY_OPTIONS.reduce<Record<string, string>>(
-        (acc: Record<string, string>, item: { value: string; label: string }) => {
-          acc[item.value] = item.label;
-          return acc;
-        },
-        {},
-      );
-    }
-    return categoryList.reduce<Record<string, string>>(
-      (acc: Record<string, string>, item: ServiceCategory) => {
-        acc[item.code] = item.name;
-        acc[item.name] = item.name;
-        item.aliases.forEach((alias: string) => {
-          acc[alias] = item.name;
-        });
-        return acc;
-      },
-      {},
-    );
-  }, [categoryList]);
-  const fetchCategoryList = useCallback(async (): Promise<void> => {
+  }, []);
+
+  const fetchCategories = useCallback(async (): Promise<void> => {
     try {
       const res = await adminGetServiceCategories();
       if (res.success) {
         setCategoryList(res.data ?? []);
       }
     } catch {
-      message.warning('服务分类加载失败，已使用默认分类');
+      message.warning('服务分类加载失败');
     }
   }, []);
 
-  // Debounce keyword search
   useEffect(() => {
-    timerRef.current = setTimeout(() => {
-      setDebouncedKeyword(keyword);
-      setPage(1);
-    }, SEARCH_DEBOUNCE_MS);
+    fetchTemplates();
+    fetchCategories();
+  }, [fetchTemplates, fetchCategories]);
 
-    return () => {
-      if (timerRef.current) {
-        clearTimeout(timerRef.current);
-      }
-    };
-  }, [keyword]);
-
-  // Fetch service list
-  const fetchList = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await adminGetServiceList({
-        page,
-        pageSize: PAGE_SIZE,
-        category: category || undefined,
-        keyword: debouncedKeyword || undefined,
-      });
-      if (res.success && res.data) {
-        const data = res.data as PageResult<Service>;
-        const safeList = Array.isArray(data.list) ? data.list : [];
-        const safeTotal = typeof data.total === 'number' ? data.total : 0;
-        setServiceList(safeList);
-        setTotal(safeTotal);
-      }
-    } catch {
-      message.error('获取服务列表失败');
-    } finally {
-      setLoading(false);
-    }
-  }, [page, category, debouncedKeyword]);
-
-  useEffect(() => {
-    fetchCategoryList();
-  }, [fetchCategoryList]);
-  useEffect(() => {
-    fetchList();
-  }, [fetchList]);
-
-  const handleCategoryChange = useCallback((value: string | undefined) => {
-    setCategory(value);
-    setPage(1);
-  }, []);
+  const creatableCategoryOptions = useMemo(() => {
+    const usedCategoryIds = new Set(templates.map((t) => t.categoryId));
+    return categoryList
+      .filter((c) => !usedCategoryIds.has(c._id))
+      .map((c) => ({ value: c._id, label: c.name }));
+  }, [templates, categoryList]);
 
   const handleOpenCreate = useCallback(() => {
-    setEditingService(null);
+    setEditingTemplate(null);
     form.resetFields();
+    form.setFieldsValue({ defaultDuration: 60, baseItems: [], addonItems: [] });
     setModalOpen(true);
   }, [form]);
 
   const handleOpenEdit = useCallback(
-    (record: Service) => {
-      setEditingService(record);
+    (record: ServiceTemplate) => {
+      setEditingTemplate(record);
       form.setFieldsValue({
-        name: record.name,
-        category: record.category,
-        price: record.price / 100,
-        duration: record.duration,
-        description: record.description ?? '',
+        categoryId: record.categoryId,
+        defaultDuration: record.defaultDuration,
+        baseItems: (record.baseItems ?? []).map(toFormItem),
+        addonItems: (record.addonItems ?? []).map(toFormItem),
       });
       setModalOpen(true);
     },
@@ -181,98 +154,111 @@ export default function ServiceListPage() {
 
   const handleModalCancel = useCallback(() => {
     setModalOpen(false);
-    setEditingService(null);
+    setEditingTemplate(null);
     form.resetFields();
   }, [form]);
 
   const handleModalOk = useCallback(async () => {
     try {
       const values = await form.validateFields();
-      setSubmitting(true);
-
-      const payload = {
-        name: values.name,
-        category: values.category,
-        price: Math.round(values.price * 100),
-        duration: values.duration,
-        description: values.description || undefined,
-      };
-
-      let res;
-      if (editingService) {
-        res = await adminUpdateService(editingService._id, payload);
-      } else {
-        res = await adminCreateService(payload);
+      if (!editingTemplate && (!values.baseItems || values.baseItems.length === 0)) {
+        message.error('至少配置 1 个基础项目');
+        return;
       }
+      setSubmitting(true);
+      const baseItems = (values.baseItems ?? []).map((item) =>
+        toPayloadItem(item, values.defaultDuration),
+      );
+      const addonItems = (values.addonItems ?? []).map((item) => toPayloadItem(item, 0));
+
+      const res = editingTemplate
+        ? await adminUpdateServiceTemplate(editingTemplate._id, {
+            defaultDuration: values.defaultDuration,
+            baseItems,
+            addonItems,
+          })
+        : await adminCreateServiceTemplate({
+            categoryId: values.categoryId,
+            defaultDuration: values.defaultDuration,
+            baseItems,
+            addonItems,
+          });
 
       if (res.success) {
-        message.success(editingService ? '服务更新成功' : '服务创建成功');
+        message.success(editingTemplate ? '模板更新成功' : '模板创建成功');
         setModalOpen(false);
-        setEditingService(null);
+        setEditingTemplate(null);
         form.resetFields();
-        fetchList();
+        fetchTemplates();
       } else {
         message.error(res.error?.message ?? '操作失败，请重试');
       }
     } catch {
-      // form validation failed — do nothing
+      // 表单校验失败或服务端错误提示已由拦截器处理
     } finally {
       setSubmitting(false);
     }
-  }, [form, editingService, fetchList]);
+  }, [form, editingTemplate, fetchTemplates]);
 
   const handleToggleStatus = useCallback(
-    (record: Service) => {
+    (record: ServiceTemplate) => {
       const nextActive = !record.active;
-      const actionText = nextActive ? '上架' : '下架';
+      const actionText = nextActive ? '启用' : '停用';
       Modal.confirm({
         title: `确认${actionText}`,
-        content: `确定要${actionText}服务「${record.name}」吗？`,
+        content: `确定要${actionText}「${record.categoryName}」的服务模板吗？停用后新预约不可选择该大类，已有预约保持有效。`,
         okText: '确认',
         cancelText: '取消',
         onOk: async () => {
-          const res = await adminToggleServiceStatus(
-            record._id,
-            nextActive,
-          );
+          const res = await adminToggleServiceTemplateStatus(record._id, nextActive);
           if (res.success) {
             message.success(`${actionText}成功`);
-            fetchList();
+            fetchTemplates();
           } else {
             message.error(res.error?.message ?? `${actionText}失败`);
           }
         },
       });
     },
-    [fetchList],
+    [fetchTemplates],
   );
 
-  const columns: ColumnsType<Service> = [
+  const renderItemTags = (items: TemplateItem[] | undefined): ReactNode => {
+    if (!items || items.length === 0) {
+      return '-';
+    }
+    return (
+      <Space size={4} wrap>
+        {items.map((item) => (
+          <Tag key={item.itemId}>{`${item.name} ¥${formatAmount(item.defaultPrice)}`}</Tag>
+        ))}
+      </Space>
+    );
+  };
+
+  const columns: ColumnsType<ServiceTemplate> = [
     {
-      title: '名称',
-      dataIndex: 'name',
-      key: 'name',
-      width: 160,
+      title: '服务大类',
+      dataIndex: 'categoryName',
+      key: 'categoryName',
+      width: 100,
     },
     {
-      title: '分类',
-      dataIndex: 'category',
-      key: 'category',
-      width: 100,
-      render: (val: string) => categoryLabelMap[val] ?? val,
+      title: '默认预约时长',
+      dataIndex: 'defaultDuration',
+      key: 'defaultDuration',
+      width: 110,
+      render: (val: number) => `${val} 分钟`,
     },
     {
-      title: '价格',
-      dataIndex: 'price',
-      key: 'price',
-      width: 100,
-      render: (val: number) => `¥${formatAmount(val)}`,
+      title: '基础项目（款式）',
+      key: 'baseItems',
+      render: (_: unknown, record: ServiceTemplate) => renderItemTags(record.baseItems),
     },
     {
-      title: '时长（分钟）',
-      dataIndex: 'duration',
-      key: 'duration',
-      width: 100,
+      title: '附加项目',
+      key: 'addonItems',
+      render: (_: unknown, record: ServiceTemplate) => renderItemTags(record.addonItems),
     },
     {
       title: '状态',
@@ -280,23 +266,15 @@ export default function ServiceListPage() {
       key: 'active',
       width: 80,
       render: (active: boolean) =>
-        active ? (
-          <Tag color="green">上架</Tag>
-        ) : (
-          <Tag color="default">下架</Tag>
-        ),
+        active ? <Tag color="green">启用</Tag> : <Tag color="default">停用</Tag>,
     },
     {
       title: '操作',
       key: 'action',
-      width: 160,
-      render: (_: unknown, record: Service) => (
+      width: 140,
+      render: (_: unknown, record: ServiceTemplate) => (
         <Space size="small">
-          <Button
-            type="link"
-            size="small"
-            onClick={() => handleOpenEdit(record)}
-          >
+          <Button type="link" size="small" onClick={() => handleOpenEdit(record)}>
             编辑
           </Button>
           <Button
@@ -305,7 +283,7 @@ export default function ServiceListPage() {
             danger={record.active}
             onClick={() => handleToggleStatus(record)}
           >
-            {record.active ? '下架' : '上架'}
+            {record.active ? '停用' : '启用'}
           </Button>
         </Space>
       ),
@@ -315,6 +293,52 @@ export default function ServiceListPage() {
   const displayColumns = isSuperAdmin
     ? columns
     : columns.filter((column) => column.key !== 'action');
+
+  const renderItemListEditor = (
+    fields: Array<{ key: number; name: number }>,
+    add: (defaultValue?: TemplateItemFormValue) => void,
+    remove: (name: number) => void,
+    defaultItem: TemplateItemFormValue,
+  ): ReactNode => (
+    <>
+      {fields.map((field) => (
+        <div key={field.key} style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+          <Form.Item
+            name={[field.name, 'name']}
+            rules={[{ required: true, message: '名称必填' }]}
+            style={{ flex: 2, marginBottom: 0 }}
+          >
+            <Input placeholder="项目名称" maxLength={30} />
+          </Form.Item>
+          <Form.Item
+            name={[field.name, 'price']}
+            rules={[{ required: true, message: '价格必填' }]}
+            style={{ flex: 1, marginBottom: 0 }}
+          >
+            <InputNumber min={0} step={0.01} precision={2} style={{ width: '100%' }} addonAfter="元" />
+          </Form.Item>
+          <Form.Item
+            name={[field.name, 'discountable']}
+            valuePropName="checked"
+            style={{ marginBottom: 0 }}
+          >
+            <Checkbox>折扣</Checkbox>
+          </Form.Item>
+          <Form.Item
+            name={[field.name, 'commissionable']}
+            valuePropName="checked"
+            style={{ marginBottom: 0 }}
+          >
+            <Checkbox>提成</Checkbox>
+          </Form.Item>
+          <Button type="text" danger icon={<MinusCircleOutlined />} onClick={() => remove(field.name)} />
+        </div>
+      ))}
+      <Button type="dashed" block icon={<PlusOutlined />} onClick={() => add({ ...defaultItem })}>
+        添加项目
+      </Button>
+    </>
+  );
 
   return (
     <div>
@@ -327,146 +351,83 @@ export default function ServiceListPage() {
         }}
       >
         <Title level={4} style={{ margin: 0 }}>
-          服务项目管理
+          服务模板管理
         </Title>
         {isSuperAdmin && (
           <Button
             type="primary"
             icon={<PlusOutlined />}
             onClick={handleOpenCreate}
+            disabled={creatableCategoryOptions.length === 0}
           >
-            新增服务
+            新增模板
           </Button>
         )}
       </div>
 
-      <Space style={{ marginBottom: 16 }} wrap>
-        <Input
-          placeholder="搜索服务名称"
-          prefix={<SearchOutlined />}
-          allowClear
-          style={{ width: 240 }}
-          value={keyword}
-          onChange={(e) => setKeyword(e.target.value)}
-        />
-        <Select
-          placeholder="服务分类"
-          allowClear
-          style={{ width: 140 }}
-          value={category}
-          onChange={handleCategoryChange}
-          options={categoryOptions}
-        />
-      </Space>
-
-      <Table<Service>
+      <Table<ServiceTemplate>
         columns={displayColumns}
-        dataSource={serviceList}
+        dataSource={templates}
         rowKey="_id"
         loading={loading}
-        pagination={{
-          current: page,
-          pageSize: PAGE_SIZE,
-          total,
-          onChange: setPage,
-          showTotal: (t) => `共 ${t} 条`,
-        }}
+        pagination={false}
       />
 
       <Modal
-        title={editingService ? '编辑服务' : '新增服务'}
+        title={editingTemplate ? `编辑模板（${editingTemplate.categoryName}）` : '新增服务模板'}
         open={modalOpen}
         onOk={handleModalOk}
         onCancel={handleModalCancel}
         confirmLoading={submitting}
         okButtonProps={{ disabled: submitting }}
-        destroyOnClose
+        destroyOnHidden
+        width={760}
       >
         <Form form={form} layout="vertical" autoComplete="off">
           <Form.Item
-            name="name"
-            label="服务名称"
-            rules={[
-              { required: true, message: '请输入服务名称' },
-              { min: 2, message: '服务名称长度至少 2 个字符' },
-              { max: 30, message: '服务名称长度最多 30 个字符' },
-            ]}
+            name="categoryId"
+            label="服务大类"
+            rules={[{ required: true, message: '请选择服务大类' }]}
           >
-            <Input placeholder="请输入服务名称（2–30 字符）" />
+            <Select
+              placeholder="请选择服务大类"
+              options={creatableCategoryOptions}
+              disabled={!!editingTemplate}
+            />
           </Form.Item>
           <Form.Item
-            name="category"
-            label="分类"
-            rules={[{ required: true, message: '请选择服务分类' }]}
-          >
-            <Select placeholder="请选择分类" options={categoryOptions} />
-          </Form.Item>
-          <Form.Item
-            name="price"
-            label="价格（元）"
+            name="defaultDuration"
+            label="默认预约时长（分钟）"
             rules={[
-              { required: true, message: '请输入价格' },
+              { required: true, message: '请输入默认预约时长' },
               {
                 validator: (_, value) => {
                   if (value === undefined || value === null) {
                     return Promise.resolve();
                   }
-                  if (typeof value !== 'number' || value <= 0) {
-                    return Promise.reject(new Error('价格必须大于 0'));
+                  if (typeof value !== 'number' || value <= 0 || !Number.isInteger(value)) {
+                    return Promise.reject(new Error('时长必须为大于 0 的整数'));
                   }
                   return Promise.resolve();
                 },
               },
             ]}
           >
-            <InputNumber
-              placeholder="请输入价格"
-              min={0.01}
-              step={0.01}
-              precision={2}
-              style={{ width: '100%' }}
-              addonAfter="元"
-            />
+            <InputNumber min={1} step={5} precision={0} style={{ width: '100%' }} addonAfter="分钟" />
           </Form.Item>
-          <Form.Item
-            name="duration"
-            label="时长（分钟）"
-            rules={[
-              { required: true, message: '请输入时长' },
-              {
-                validator: (_, value) => {
-                  if (value === undefined || value === null) {
-                    return Promise.resolve();
-                  }
-                  if (
-                    typeof value !== 'number' ||
-                    value <= 0 ||
-                    !Number.isInteger(value)
-                  ) {
-                    return Promise.reject(
-                      new Error('时长必须为大于 0 的整数'),
-                    );
-                  }
-                  return Promise.resolve();
-                },
-              },
-            ]}
-          >
-            <InputNumber
-              placeholder="请输入时长"
-              min={1}
-              step={1}
-              precision={0}
-              style={{ width: '100%' }}
-              addonAfter="分钟"
-            />
+          <Form.Item label="基础项目（款式，结算时必选 1 个）" required>
+            <Form.List name="baseItems">
+              {(fields, { add, remove }) =>
+                renderItemListEditor(fields, add, remove, NEW_ITEM)
+              }
+            </Form.List>
           </Form.Item>
-          <Form.Item name="description" label="描述">
-            <TextArea
-              placeholder="请输入服务描述（可选）"
-              rows={3}
-              maxLength={200}
-            />
+          <Form.Item label="附加项目（结算时可选多个）">
+            <Form.List name="addonItems">
+              {(fields, { add, remove }) =>
+                renderItemListEditor(fields, add, remove, NEW_ADDON)
+              }
+            </Form.List>
           </Form.Item>
         </Form>
       </Modal>

@@ -23,7 +23,7 @@ export interface MemberCard {
   discountLevelId: string;
   balance: number; // 分
   totalRecharge: number; // 分
-  status: 'active' | 'frozen';
+  status: 'active' | 'frozen' | 'cancelled';
   createdAt: Date;
   updatedAt: Date;
 }
@@ -56,6 +56,7 @@ export interface ConsumptionRecord {
   originalAmount?: number;
   discountAmount?: number;
   amount: number; // 分
+  totalAmount?: number; // 分（技师业绩明细接口返回字段）
   points?: number;
   pointsEarned?: number;
   technicianName?: string;

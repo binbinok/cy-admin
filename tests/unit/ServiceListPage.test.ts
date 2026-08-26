@@ -15,15 +15,15 @@ import { SEARCH_DEBOUNCE_MS } from '@/constants/business';
 
 // Mock service API
 const mockAdminGetServiceList = vi.fn();
-const mockAdminCreateService = vi.fn();
-const mockAdminUpdateService = vi.fn();
-const mockAdminToggleServiceStatus = vi.fn();
+const mockAdminCreateServiceTemplate = vi.fn();
+const mockAdminUpdateServiceTemplate = vi.fn();
+const mockAdminToggleServiceTemplateStatus = vi.fn();
 vi.mock('@/services/service', () => ({
   adminGetServiceList: (...args: unknown[]) => mockAdminGetServiceList(...args),
-  adminCreateService: (...args: unknown[]) => mockAdminCreateService(...args),
-  adminUpdateService: (...args: unknown[]) => mockAdminUpdateService(...args),
-  adminToggleServiceStatus: (...args: unknown[]) =>
-    mockAdminToggleServiceStatus(...args),
+  adminCreateServiceTemplate: (...args: unknown[]) => mockAdminCreateServiceTemplate(...args),
+  adminUpdateServiceTemplate: (...args: unknown[]) => mockAdminUpdateServiceTemplate(...args),
+  adminToggleServiceTemplateStatus: (...args: unknown[]) =>
+    mockAdminToggleServiceTemplateStatus(...args),
 }));
 
 // Mock http
@@ -158,28 +158,33 @@ describe('ServiceListPage', () => {
 
   // 4. Create modal opens and validates
   describe('create modal validation', () => {
-    it('should call adminCreateService with correct payload', async () => {
-      mockAdminCreateService.mockResolvedValue({
+    it('should call adminCreateServiceTemplate with correct payload', async () => {
+      mockAdminCreateServiceTemplate.mockResolvedValue({
         success: true,
-        data: makeService({ name: '新服务' }),
+        data: { templateId: 'tpl1', message: '服务模板创建成功' },
       });
 
-      const { adminCreateService } = await import('@/services/service');
-      const res = await adminCreateService({
-        name: '新服务',
-        category: 'nail',
-        price: 9900,
-        duration: 45,
-        description: '测试描述',
-      });
+      const { adminCreateServiceTemplate } = await import('@/services/service');
+      const payload = {
+        categoryId: 'c1',
+        defaultDuration: 120,
+        baseItems: [
+          {
+            name: '基础款式',
+            inputType: 'single_select' as const,
+            options: ['基础款式'],
+            defaultPrice: 9900,
+            defaultDuration: 120,
+            discountable: true,
+            commissionable: true,
+            enabled: true,
+          },
+        ],
+        addonItems: [],
+      };
+      const res = await adminCreateServiceTemplate(payload);
 
-      expect(mockAdminCreateService).toHaveBeenCalledWith({
-        name: '新服务',
-        category: 'nail',
-        price: 9900,
-        duration: 45,
-        description: '测试描述',
-      });
+      expect(mockAdminCreateServiceTemplate).toHaveBeenCalledWith(payload);
       expect(res.success).toBe(true);
     });
 
@@ -192,21 +197,19 @@ describe('ServiceListPage', () => {
 
   // 5. Edit modal pre-fills data
   describe('edit modal pre-fill', () => {
-    it('should call adminUpdateService with service id and data', async () => {
-      mockAdminUpdateService.mockResolvedValue({
+    it('should call adminUpdateServiceTemplate with template id and data', async () => {
+      mockAdminUpdateServiceTemplate.mockResolvedValue({
         success: true,
-        data: makeService({ name: '更新后的服务' }),
+        data: { templateId: 'tpl1', message: '服务模板更新成功' },
       });
 
-      const { adminUpdateService } = await import('@/services/service');
-      const res = await adminUpdateService('s1', {
-        name: '更新后的服务',
-        price: 15800,
+      const { adminUpdateServiceTemplate } = await import('@/services/service');
+      const res = await adminUpdateServiceTemplate('tpl1', {
+        defaultDuration: 90,
       });
 
-      expect(mockAdminUpdateService).toHaveBeenCalledWith('s1', {
-        name: '更新后的服务',
-        price: 15800,
+      expect(mockAdminUpdateServiceTemplate).toHaveBeenCalledWith('tpl1', {
+        defaultDuration: 90,
       });
       expect(res.success).toBe(true);
     });
@@ -298,40 +301,40 @@ describe('ServiceListPage', () => {
 
   // 8. Toggle status with confirmation
   describe('toggle status', () => {
-    it('should call adminToggleServiceStatus to deactivate', async () => {
-      mockAdminToggleServiceStatus.mockResolvedValue({ success: true });
+    it('should call adminToggleServiceTemplateStatus to disable', async () => {
+      mockAdminToggleServiceTemplateStatus.mockResolvedValue({ success: true });
 
-      const { adminToggleServiceStatus } = await import(
+      const { adminToggleServiceTemplateStatus } = await import(
         '@/services/service'
       );
-      const res = await adminToggleServiceStatus('s1', false);
+      const res = await adminToggleServiceTemplateStatus('tpl1', false);
 
-      expect(mockAdminToggleServiceStatus).toHaveBeenCalledWith('s1', false);
+      expect(mockAdminToggleServiceTemplateStatus).toHaveBeenCalledWith('tpl1', false);
       expect(res.success).toBe(true);
     });
 
-    it('should call adminToggleServiceStatus to activate', async () => {
-      mockAdminToggleServiceStatus.mockResolvedValue({ success: true });
+    it('should call adminToggleServiceTemplateStatus to enable', async () => {
+      mockAdminToggleServiceTemplateStatus.mockResolvedValue({ success: true });
 
-      const { adminToggleServiceStatus } = await import(
+      const { adminToggleServiceTemplateStatus } = await import(
         '@/services/service'
       );
-      const res = await adminToggleServiceStatus('s1', true);
+      const res = await adminToggleServiceTemplateStatus('tpl1', true);
 
-      expect(mockAdminToggleServiceStatus).toHaveBeenCalledWith('s1', true);
+      expect(mockAdminToggleServiceTemplateStatus).toHaveBeenCalledWith('tpl1', true);
       expect(res.success).toBe(true);
     });
 
     it('should handle toggle failure gracefully', async () => {
-      mockAdminToggleServiceStatus.mockResolvedValue({
+      mockAdminToggleServiceTemplateStatus.mockResolvedValue({
         success: false,
         error: { code: 'TOGGLE_FAILED', message: '操作失败' },
       });
 
-      const { adminToggleServiceStatus } = await import(
+      const { adminToggleServiceTemplateStatus } = await import(
         '@/services/service'
       );
-      const res = await adminToggleServiceStatus('s1', false);
+      const res = await adminToggleServiceTemplateStatus('tpl1', false);
 
       expect(res.success).toBe(false);
       expect(res.error?.message).toBe('操作失败');

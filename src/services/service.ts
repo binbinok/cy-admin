@@ -2,11 +2,12 @@ import http from './http';
 import {
   CF_GET_SERVICE_LIST,
   CF_GET_SERVICE_CATEGORIES,
-  CF_CREATE_SERVICE,
-  CF_UPDATE_SERVICE,
-  CF_TOGGLE_SERVICE_STATUS,
+  CF_GET_SERVICE_TEMPLATES,
+  CF_CREATE_SERVICE_TEMPLATE,
+  CF_UPDATE_SERVICE_TEMPLATE,
+  CF_TOGGLE_SERVICE_TEMPLATE_STATUS,
 } from '@/constants/api';
-import type { Service, ServiceCategory } from '@/types/service';
+import type { Service, ServiceCategory, ServiceTemplate, TemplateItem } from '@/types/service';
 import type { ApiResponse, PageResult } from '@/types/common';
 
 export async function adminGetServiceList(
@@ -31,40 +32,67 @@ export async function adminGetServiceCategories(): Promise<ApiResponse<ServiceCa
   return response.data;
 }
 
-export async function adminCreateService(
+export interface TemplateItemPayload {
+  itemId?: string;
+  name: string;
+  inputType: TemplateItem['inputType'];
+  options?: string[];
+  defaultPrice: number;
+  defaultDuration: number;
+  discountable: boolean;
+  commissionable: boolean;
+  enabled: boolean;
+}
+
+export async function adminGetServiceTemplates(
+  params: { activeOnly?: boolean } = {},
+): Promise<ApiResponse<ServiceTemplate[]>> {
+  const response = await http.post<ApiResponse<ServiceTemplate[]>>(
+    `/invoke/${CF_GET_SERVICE_TEMPLATES}`,
+    params,
+  );
+  return response.data;
+}
+
+export async function adminCreateServiceTemplate(
   data: {
-    name: string;
-    category: string;
-    price: number;
-    duration: number;
-    description?: string;
+    categoryId: string;
+    defaultDuration: number;
+    baseItems: TemplateItemPayload[];
+    addonItems?: TemplateItemPayload[];
+    sort?: number;
   },
-): Promise<ApiResponse<Service>> {
-  const response = await http.post<ApiResponse<Service>>(
-    `/invoke/${CF_CREATE_SERVICE}`,
+): Promise<ApiResponse<{ templateId: string; message: string }>> {
+  const response = await http.post<ApiResponse<{ templateId: string; message: string }>>(
+    `/invoke/${CF_CREATE_SERVICE_TEMPLATE}`,
     data,
   );
   return response.data;
 }
 
-export async function adminUpdateService(
-  serviceId: string,
-  data: Partial<Service>,
-): Promise<ApiResponse<Service>> {
-  const response = await http.post<ApiResponse<Service>>(
-    `/invoke/${CF_UPDATE_SERVICE}`,
-    { serviceId, ...data },
+export async function adminUpdateServiceTemplate(
+  templateId: string,
+  data: {
+    defaultDuration?: number;
+    baseItems?: TemplateItemPayload[];
+    addonItems?: TemplateItemPayload[];
+    sort?: number;
+  },
+): Promise<ApiResponse<{ templateId: string; message: string }>> {
+  const response = await http.post<ApiResponse<{ templateId: string; message: string }>>(
+    `/invoke/${CF_UPDATE_SERVICE_TEMPLATE}`,
+    { templateId, ...data },
   );
   return response.data;
 }
 
-export async function adminToggleServiceStatus(
-  serviceId: string,
+export async function adminToggleServiceTemplateStatus(
+  templateId: string,
   active: boolean,
-): Promise<ApiResponse<void>> {
-  const response = await http.post<ApiResponse<void>>(
-    `/invoke/${CF_TOGGLE_SERVICE_STATUS}`,
-    { serviceId, active },
+): Promise<ApiResponse<{ templateId: string; active: boolean; message: string }>> {
+  const response = await http.post<ApiResponse<{ templateId: string; active: boolean; message: string }>>(
+    `/invoke/${CF_TOGGLE_SERVICE_TEMPLATE_STATUS}`,
+    { templateId, active },
   );
   return response.data;
 }

@@ -31,12 +31,18 @@ export const CF_DELETE_TECHNICIAN = 'adminDeleteTechnician';
 export const CF_SET_TECHNICIAN_SCHEDULE = 'adminSetTechnicianSchedule';
 export const CF_SET_TECHNICIAN_SERVICE_SLOTS = 'adminSetTechnicianServiceSlots';
 
-// 服务项目模块
+// 服务项目模块（旧 services 体系，保留只读）
 export const CF_GET_SERVICE_LIST = 'adminGetServiceList';
 export const CF_GET_SERVICE_CATEGORIES = 'adminGetServiceCategories';
 export const CF_CREATE_SERVICE = 'adminCreateService';
 export const CF_UPDATE_SERVICE = 'adminUpdateService';
 export const CF_TOGGLE_SERVICE_STATUS = 'adminToggleServiceStatus';
+
+// 服务模板模块
+export const CF_GET_SERVICE_TEMPLATES = 'adminGetServiceTemplates';
+export const CF_CREATE_SERVICE_TEMPLATE = 'adminCreateServiceTemplate';
+export const CF_UPDATE_SERVICE_TEMPLATE = 'adminUpdateServiceTemplate';
+export const CF_TOGGLE_SERVICE_TEMPLATE_STATUS = 'adminToggleServiceTemplateStatus';
 
 // 预约模块
 export const CF_GET_APPOINTMENT_LIST = 'adminGetAppointmentList';
@@ -53,6 +59,7 @@ export const CF_GET_CONSUMPTION_LIST = 'adminGetConsumptionList';
 export const CF_GET_TECHNICIAN_PERFORMANCE = 'adminGetTechnicianPerformance';
 export const CF_GET_TECHNICIAN_INCOME_DETAIL = 'adminGetTechnicianIncomeDetail';
 export const CF_CREATE_INCOME_RECORD = 'adminCreateIncomeRecord';
+export const CF_CREATE_SETTLEMENT = 'adminCreateSettlement';
 export const CF_EXPORT_PAYROLL = 'adminExportPayroll';
 
 // 提成模块
@@ -69,8 +76,8 @@ export const CF_ASSIGN_DISCOUNT_LEVEL = 'adminAssignDiscountLevel';
 export const CF_RECHARGE_CARD = 'adminRechargeCard';
 export const CF_GET_CARD_RECHARGE_RECORDS = 'adminGetCardRechargeRecords';
 export const CF_DEDUCT_CARD_BALANCE = 'adminDeductCardBalance';
-export const CF_BIND_MEMBER_CARD = 'adminBindMemberCard';
-export const CF_UNBIND_MEMBER_CARD = 'adminUnbindMemberCard';
+export const CF_CANCEL_MEMBER_CARD = 'adminCancelMemberCard';
+export const CF_CREATE_MEMBER_CARD = 'adminCreateMemberCard';
 export const CF_GET_MEMBER_CARD_ASSOCIATION = 'adminGetMemberCardAssociation';
 
 // 操作日志模块

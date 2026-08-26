@@ -3,11 +3,11 @@ import {
   Table,
   Tag,
   Modal,
-  InputNumber,
   Select,
   AutoComplete,
   DatePicker,
   Input,
+  InputNumber,
   Typography,
   Space,
   Button,
@@ -18,22 +18,22 @@ import { SearchOutlined, PlusOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import type { Dayjs } from 'dayjs';
+import { useNavigate } from 'react-router-dom';
 import {
   adminGetAppointmentList,
   adminCreateAppointment,
   adminConfirmArrival,
-  adminCompleteService,
   adminCancelAppointment,
 } from '@/services/appointment';
 import { adminGetTechnicianList } from '@/services/technician';
-import { adminGetServiceList } from '@/services/service';
+import { adminGetServiceTemplates } from '@/services/service';
 import { adminGetMemberList } from '@/services/member';
-import { formatAmount } from '@/utils/format';
-import { calculatePoints } from '@/utils/points';
 import { SEARCH_DEBOUNCE_MS } from '@/constants/business';
+import { useIncomePrefillStore } from '@/stores/incomePrefillStore';
+import { useUiStore } from '@/stores/uiStore';
 import type { Appointment } from '@/types/appointment';
 import type { Technician } from '@/types/technician';
-import type { Service } from '@/types/service';
+import type { ServiceTemplate } from '@/types/service';
 import type { Member } from '@/types/member';
 import type { PageResult } from '@/types/common';
 
@@ -57,6 +57,7 @@ const STATUS_MAP: Record<string, { label: string; color: string }> = {
 
 export default function AppointmentListPage() {
   const today = dayjs().format('YYYY-MM-DD');
+  const navigate = useNavigate();
 
   const [page, setPage] = useState(1);
   const [dateRange, setDateRange] = useState<[string, string]>([today, today]);
@@ -76,17 +77,12 @@ export default function AppointmentListPage() {
     { value: string; label: string }[]
   >([]);
 
-  const [completeModalOpen, setCompleteModalOpen] = useState(false);
-  const [completingId, setCompletingId] = useState<string | null>(null);
-  const [actualAmountYuan, setActualAmountYuan] = useState<number | null>(0);
-  const [submitting, setSubmitting] = useState(false);
 
-  // 新增预约弹窗状态
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [createSubmitting, setCreateSubmitting] = useState(false);
   const [createForm] = Form.useForm();
-  const [serviceOptions, setServiceOptions] = useState<{ value: string; label: string }[]>([]);
-  const [memberOptions, setMemberOptions] = useState<{ value: string; label: string }[]>([]);
+  const [templateOptions, setTemplateOptions] = useState<ServiceTemplate[]>([]);
+  const [memberOptions, setMemberOptions] = useState<{ value: string; label: string; memberId: string }[]>([]);
 
   // Debounce keyword search
   useEffect(() => {
@@ -207,42 +203,28 @@ export default function AppointmentListPage() {
     [fetchList],
   );
 
-  // Open complete service modal
-  const handleOpenComplete = useCallback((record: Appointment) => {
-    setCompletingId(record._id);
-    setActualAmountYuan(0);
-    setCompleteModalOpen(true);
-  }, []);
-
-  // Submit complete service
-  const handleCompleteOk = useCallback(async () => {
-    if (completingId === null) return;
-    const yuan = actualAmountYuan ?? 0;
-    const amountInFen = Math.round(yuan * 100);
-    setSubmitting(true);
-    try {
-      const res = await adminCompleteService(completingId, amountInFen);
-      if (res.success) {
-        message.success('服务已完成');
-        setCompleteModalOpen(false);
-        setCompletingId(null);
-        setActualAmountYuan(0);
-        fetchList();
-      } else {
-        message.error(res.error?.message ?? '操作失败');
-      }
-    } catch {
-      message.error('操作失败，请重试');
-    } finally {
-      setSubmitting(false);
-    }
-  }, [completingId, actualAmountYuan, fetchList]);
-
-  const handleCompleteCancel = useCallback(() => {
-    setCompleteModalOpen(false);
-    setCompletingId(null);
-    setActualAmountYuan(0);
-  }, []);
+  // 完成服务：跳转财务统计页的收入录入弹框并预填预约信息
+  const handleOpenComplete = useCallback(
+    (record: Appointment) => {
+      useIncomePrefillStore.getState().setIncomePrefill({
+        appointmentId: record._id,
+        serviceId: record.serviceId,
+        serviceName: record.serviceName,
+        serviceCategory: record.categoryName ?? record.serviceName,
+        categoryId: record.categoryId,
+        categoryName: record.categoryName,
+        duration: record.duration,
+        technicianId: record.technicianId,
+        memberId: record.memberId,
+        guestName: record.guestName,
+        serviceTime: `${record.appointmentDate} ${record.appointmentTime}`,
+        note: record.note,
+      });
+      useUiStore.getState().setSelectedMenuKey('/finance');
+      navigate('/finance');
+    },
+    [navigate],
+  );
 
   // Cancel appointment
   const handleCancelAppointment = useCallback(
@@ -279,29 +261,25 @@ export default function AppointmentListPage() {
       appointmentTime: dayjs(),
     });
 
-    // 加载服务选项
+    // 加载服务大类（启用模板）与会员选项
     try {
-      const [serviceRes, memberRes] = await Promise.all([
-        adminGetServiceList({ page: 1, pageSize: 100 }),
+      const [templateRes, memberRes] = await Promise.all([
+        adminGetServiceTemplates({ activeOnly: true }),
         adminGetMemberList({ page: 1, pageSize: 100 }),
       ]);
 
-      if (serviceRes.success && serviceRes.data) {
-        const data = serviceRes.data as PageResult<Service>;
-        setServiceOptions(
-          data.list
-            .filter((s) => s.active !== false)
-            .map((s) => ({ value: s._id, label: s.name })),
-        );
+      if (templateRes.success && templateRes.data) {
+        setTemplateOptions(templateRes.data);
       }
 
       if (memberRes.success && memberRes.data) {
         const data = memberRes.data as PageResult<Member>;
         setMemberOptions(
-          data.list.map((m) => ({
-            value: m.memberId,
-            label: `${m.nickName || '未命名会员'}${m.phone ? `（${m.phone}）` : ''}`,
-          })),
+          data.list.map((m) => {
+            // 选中后输入框展示会员名称（手机号已由接口层脱敏）
+            const display = `${m.nickName || '未命名会员'}${m.phone ? `（${m.phone}）` : ''}`;
+            return { value: display, label: display, memberId: m.memberId };
+          }),
         );
       }
     } catch {
@@ -328,25 +306,23 @@ export default function AppointmentListPage() {
       const memberInput = String(values.memberId ?? '').trim();
       const matchedMember = memberOptions.find((option) => option.value === memberInput);
 
+      const baseParams = {
+        categoryId: values.categoryId as string,
+        duration: values.duration as number,
+        technicianId: values.technicianId as string,
+        appointmentDate,
+        appointmentTime,
+        note: (values.note as string) || undefined,
+      };
+
       let createParams: Parameters<typeof adminCreateAppointment>[0];
       if (matchedMember) {
-        createParams = {
-          memberId: matchedMember.value,
-          serviceId: values.serviceId,
-          technicianId: values.technicianId,
-          appointmentDate,
-          appointmentTime,
-          note: values.note || undefined,
-        };
+        createParams = { ...baseParams, memberId: matchedMember.memberId };
       } else if (memberInput) {
         createParams = {
+          ...baseParams,
           guestName: memberInput,
-          guestPhone: values.guestPhone || undefined,
-          serviceId: values.serviceId,
-          technicianId: values.technicianId,
-          appointmentDate,
-          appointmentTime,
-          note: values.note || undefined,
+          guestPhone: (values.guestPhone as string) || undefined,
         };
       } else {
         message.error('请选择会员或输入散客姓名');
@@ -373,9 +349,6 @@ export default function AppointmentListPage() {
     }
   }, [createForm, fetchList, memberOptions]);
 
-  // Computed points for the complete modal
-  const computedAmountFen = Math.round((actualAmountYuan ?? 0) * 100);
-  const computedPoints = calculatePoints(computedAmountFen);
 
   const columns: ColumnsType<Appointment> = [
     {
@@ -392,17 +365,22 @@ export default function AppointmentListPage() {
         if (record.guestName) {
           return `${record.guestName}（散客）`;
         }
-        const memberName = (record as Appointment & { memberName?: string }).memberName;
-        return memberName ?? record.memberId ?? '-';
+        return record.memberName ?? record.memberId ?? '-';
       },
     },
     {
-      title: '服务项目',
+      title: '服务大类',
       key: 'service',
-      width: 140,
+      width: 120,
       render: (_: unknown, record: Appointment) =>
-        (record as Appointment & { serviceName?: string }).serviceName ??
-        record.serviceId,
+        record.categoryName ?? record.serviceName ?? record.serviceId ?? '-',
+    },
+    {
+      title: '时长',
+      key: 'duration',
+      width: 90,
+      render: (_: unknown, record: Appointment) =>
+        record.duration ? `${record.duration} 分钟` : '-',
     },
     {
       title: '技师',
@@ -542,41 +520,13 @@ export default function AppointmentListPage() {
       />
 
       <Modal
-        title="完成服务"
-        open={completeModalOpen}
-        onOk={handleCompleteOk}
-        onCancel={handleCompleteCancel}
-        confirmLoading={submitting}
-        okButtonProps={{ disabled: submitting }}
-        destroyOnClose
-      >
-        <div style={{ marginBottom: 16 }}>
-          <div style={{ marginBottom: 8 }}>实际消费金额（元）：</div>
-          <InputNumber
-            min={0}
-            precision={2}
-            step={0.01}
-            style={{ width: '100%' }}
-            value={actualAmountYuan}
-            onChange={(val) => setActualAmountYuan(val)}
-            addonAfter="元"
-          />
-        </div>
-        <div style={{ marginBottom: 8 }}>
-          实际消费：¥{formatAmount(computedAmountFen)}
-        </div>
-        <div>
-          预计获得积分：{computedPoints} 分
-        </div>
-      </Modal>
 
-      <Modal
         title="新增预约"
         open={createModalOpen}
         onOk={handleSubmitCreate}
         onCancel={handleCloseCreateModal}
         confirmLoading={createSubmitting}
-        destroyOnClose
+        destroyOnHidden
         width={600}
       >
         <Form form={createForm} layout="vertical">
@@ -605,13 +555,47 @@ export default function AppointmentListPage() {
             <Input placeholder="请输入散客手机号（可选）" maxLength={11} />
           </Form.Item>
           <Form.Item
-            name="serviceId"
-            label="服务项目"
-            rules={[{ required: true, message: '请选择服务项目' }]}
+            name="categoryId"
+            label="服务大类"
+            rules={[{ required: true, message: '请选择服务大类' }]}
           >
             <Select
-              placeholder="请选择服务项目"
-              options={serviceOptions}
+              placeholder="请选择服务大类"
+              options={templateOptions.map((t) => ({
+                value: t.categoryId,
+                label: t.categoryName,
+              }))}
+              onChange={(categoryId: string) => {
+                const template = templateOptions.find((t) => t.categoryId === categoryId);
+                createForm.setFieldsValue({ duration: template?.defaultDuration });
+              }}
+            />
+          </Form.Item>
+          <Form.Item
+            name="duration"
+            label="占用时长（分钟）"
+            rules={[
+              { required: true, message: '请输入占用时长' },
+              {
+                validator: (_, value) => {
+                  if (value === undefined || value === null) {
+                    return Promise.resolve();
+                  }
+                  if (typeof value !== 'number' || value <= 0 || !Number.isInteger(value)) {
+                    return Promise.reject(new Error('时长必须为大于 0 的整数'));
+                  }
+                  return Promise.resolve();
+                },
+              },
+            ]}
+          >
+            <InputNumber
+              placeholder="选择大类后自动带出，可手动修改"
+              min={1}
+              step={5}
+              precision={0}
+              style={{ width: '100%' }}
+              addonAfter="分钟"
             />
           </Form.Item>
           <Form.Item

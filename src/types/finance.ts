@@ -33,3 +33,39 @@ export interface CreateIncomeRecordResult {
   discountAmount: number;
   pointsEarned: number;
 }
+export interface SettlementAddon {
+  itemId: string;
+  inputValue?: string;
+  price: number; // 分
+}
+export interface SettlementCustomAddon {
+  name: string;
+  price: number; // 分
+  reason: string;
+}
+export interface CreateSettlementPayload {
+  appointmentId?: string;
+  memberId?: string;
+  guestName?: string;
+  technicianId: string;
+  serviceTime: string;
+  categoryId: string;
+  baseItemId: string;
+  baseItemPrice: number; // 分
+  addons?: SettlementAddon[];
+  customAddons?: SettlementCustomAddon[];
+  adjustAmount?: number; // 分，可正可负
+  adjustReason?: string;
+  paymentDetails: Array<{ paymentType: string; amount: number }>;
+  note?: string;
+}
+export interface SettlementResult {
+  consumptionId: string;
+  originalAmount: number;
+  discountAmount: number;
+  receivableAmount: number;
+  adjustAmount: number;
+  amount: number;
+  pointsEarned: number;
+  commissionAmount: number;
+}

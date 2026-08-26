@@ -10,6 +10,10 @@ import {
   Form,
   Input,
   InputNumber,
+  DatePicker,
+  Select,
+  Alert,
+  Radio,
   Space,
   Typography,
   Spin,
@@ -17,6 +21,7 @@ import {
   Empty,
 } from 'antd';
 import { ArrowLeftOutlined } from '@ant-design/icons';
+import dayjs, { type Dayjs } from 'dayjs';
 import type { ColumnsType } from 'antd/es/table';
 import {
   adminGetMemberDetail,
@@ -24,7 +29,13 @@ import {
   adminGetMemberConsumptions,
 } from '@/services/member';
 import { useAuthStore } from '@/stores/authStore';
-import { adminBindMemberCard, adminUnbindMemberCard } from '@/services/memberCard';
+import {
+  adminGetDiscountLevels,
+  adminRechargeCard,
+  adminCreateMemberCard,
+  adminCancelMemberCard,
+  type DiscountLevel,
+} from '@/services/memberCard';
 import { maskPhone, formatAmount, formatDate } from '@/utils/format';
 import { validateMemberInfo } from '@/utils/validation';
 import { MEMBER_LEVELS } from '@/constants/business';
@@ -32,6 +43,7 @@ import type { ConsumptionRecord, CardRechargeRecord } from '@/types/member';
 
 const { Title } = Typography;
 const CONSUMPTION_PAGE_SIZE = 10;
+const CANCEL_REASON_OPTIONS = ['会员要求退卡', '操作错误', '其他'] as const;
 
 export default function MemberDetailPage() {
   const { id: memberId } = useParams<{ id: string }>();
@@ -40,13 +52,23 @@ export default function MemberDetailPage() {
 
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [rechargeModalOpen, setRechargeModalOpen] = useState(false);
-  const [bindCardModalOpen, setBindCardModalOpen] = useState(false);
+  const [createCardModalOpen, setCreateCardModalOpen] = useState(false);
+  const [cancelModalOpen, setCancelModalOpen] = useState(false);
   const [consumptionPage, setConsumptionPage] = useState(1);
   const [editForm] = Form.useForm();
   const [rechargeForm] = Form.useForm();
-  const [bindCardForm] = Form.useForm<{ cardId: string }>();
+  const [createCardForm] = Form.useForm<{ discountLevelId: string; amount: number }>();
+  const [cancelForm] = Form.useForm<{
+    reason: string;
+    remark?: string;
+    balanceAction?: 'refunded_offline' | 'cleared';
+    phoneLast4: string;
+    password: string;
+  }>();
   const [editLoading, setEditLoading] = useState(false);
-  const [bindCardLoading, setBindCardLoading] = useState(false);
+  const [createCardLoading, setCreateCardLoading] = useState(false);
+  const [rechargeLoading, setRechargeLoading] = useState(false);
+  const [cancelLoading, setCancelLoading] = useState(false);
 
   const isSuperAdmin = useAuthStore((s) => s.adminInfo?.role === 'super_admin');
 
@@ -62,6 +84,18 @@ export default function MemberDetailPage() {
 
   const member = detailData?.member;
   const card = detailData?.card;
+  const { data: levelData } = useQuery({
+    queryKey: ['discountLevels'],
+    queryFn: async () => {
+      const res = await adminGetDiscountLevels();
+      return res.data ?? [];
+    },
+  });
+  const discountLevels = levelData ?? [];
+  const cardLevel = card?.discountLevelId
+    ? discountLevels.find((l) => l._id === card.discountLevelId)
+    : undefined;
+  const rechargeMinAmount = cardLevel?.minRechargeAmount ?? 0;
 
   // Fetch consumption records
   const { data: consumptionData, isLoading: consumptionLoading } = useQuery({
@@ -86,7 +120,7 @@ export default function MemberDetailPage() {
   }, []);
 
   const handleBack = useCallback(() => {
-    navigate('/member');
+    navigate('/members');
   }, [navigate]);
 
   // Edit modal
@@ -95,7 +129,7 @@ export default function MemberDetailPage() {
       editForm.setFieldsValue({
         nickName: member.nickName,
         phone: member.phone,
-        birthday: member.birthday ?? '',
+        birthday: member.birthday ? dayjs(member.birthday) : undefined,
       });
     }
     setEditModalOpen(true);
@@ -109,10 +143,11 @@ export default function MemberDetailPage() {
   const handleEditSubmit = useCallback(async () => {
     try {
       const values = await editForm.validateFields();
+      const birthday = values.birthday ? (values.birthday as Dayjs).format('YYYY-MM-DD') : '';
       const validation = validateMemberInfo({
         nickName: values.nickName,
         phone: values.phone,
-        birthday: values.birthday,
+        birthday,
       });
       if (!validation.valid) {
         message.error(validation.errors[0]);
@@ -122,7 +157,7 @@ export default function MemberDetailPage() {
       await adminUpdateMember(memberId!, {
         nickName: values.nickName,
         phone: values.phone,
-        birthday: values.birthday,
+        birthday,
       });
       message.success('会员信息已更新');
       setEditModalOpen(false);
@@ -149,71 +184,103 @@ export default function MemberDetailPage() {
   const handleRechargeSubmit = useCallback(async () => {
     try {
       const values = await rechargeForm.validateFields();
-      const amountYuan = values.amount;
+      const amountYuan = Number(values.amount);
       if (amountYuan <= 0) {
         message.error('充值金额必须大于 0');
         return;
       }
       Modal.confirm({
         title: '确认充值',
-        content: `确认为该会员充值 ¥${Number(amountYuan).toFixed(2)} 吗？`,
-        onOk: () => {
-          // Note: actual recharge API will be implemented later in memberCard service
-          message.success('充值成功');
-          setRechargeModalOpen(false);
-          rechargeForm.resetFields();
+        content: `确认为该会员充值 ¥${amountYuan.toFixed(2)} 吗？`,
+        onOk: async () => {
+          setRechargeLoading(true);
+          try {
+            const res = await adminRechargeCard({
+              memberId: memberId!,
+              amount: Math.round(amountYuan * 100),
+            });
+            if (!res.success) {
+              throw new Error(res.error?.message ?? '充值失败');
+            }
+            message.success('充值成功');
+            setRechargeModalOpen(false);
+            rechargeForm.resetFields();
+            queryClient.invalidateQueries({ queryKey: ['memberDetail', memberId] });
+          } catch (error) {
+            message.error(error instanceof Error ? error.message : '充值失败');
+          } finally {
+            setRechargeLoading(false);
+          }
         },
       });
     } catch {
       // form validation error
     }
-  }, [rechargeForm]);
-  const handleOpenBindCard = useCallback(() => {
-    bindCardForm.resetFields();
-    setBindCardModalOpen(true);
-  }, [bindCardForm]);
-  const handleCloseBindCard = useCallback(() => {
-    bindCardForm.resetFields();
-    setBindCardModalOpen(false);
-  }, [bindCardForm]);
-  const handleSubmitBindCard = useCallback(async () => {
+  }, [rechargeForm, memberId, queryClient]);
+  const handleOpenCreateCard = useCallback(() => {
+    createCardForm.resetFields();
+    setCreateCardModalOpen(true);
+  }, [createCardForm]);
+  const handleCloseCreateCard = useCallback(() => {
+    createCardForm.resetFields();
+    setCreateCardModalOpen(false);
+  }, [createCardForm]);
+  const handleSubmitCreateCard = useCallback(async () => {
     try {
-      const values = await bindCardForm.validateFields();
-      setBindCardLoading(true);
-      const res = await adminBindMemberCard({
+      const values = await createCardForm.validateFields();
+      setCreateCardLoading(true);
+      const res = await adminCreateMemberCard({
         memberId: memberId!,
-        cardId: values.cardId,
+        discountLevelId: values.discountLevelId,
+        amount: Math.round(Number(values.amount) * 100),
       });
       if (!res.success) {
-        throw new Error(res.error?.message ?? '关联失败');
+        throw new Error(res.error?.message ?? '开卡失败');
       }
-      message.success('会员卡关联成功');
-      handleCloseBindCard();
+      message.success('会员卡开通成功');
+      handleCloseCreateCard();
       queryClient.invalidateQueries({ queryKey: ['memberDetail', memberId] });
     } catch (error) {
-      message.error(error instanceof Error ? error.message : '关联失败');
+      message.error(error instanceof Error ? error.message : '开卡失败');
     } finally {
-      setBindCardLoading(false);
+      setCreateCardLoading(false);
     }
-  }, [bindCardForm, handleCloseBindCard, memberId, queryClient]);
-  const handleUnbindCard = useCallback(async () => {
+  }, [createCardForm, handleCloseCreateCard, memberId, queryClient]);
+  const handleOpenCancel = useCallback(() => {
+    cancelForm.resetFields();
+    setCancelModalOpen(true);
+  }, [cancelForm]);
+  const handleCloseCancel = useCallback(() => {
+    setCancelModalOpen(false);
+    cancelForm.resetFields();
+  }, [cancelForm]);
+  const handleSubmitCancel = useCallback(async () => {
     if (!card) {
       return;
     }
     try {
-      const res = await adminUnbindMemberCard({
+      const values = await cancelForm.validateFields();
+      const reason = values.reason === '其他' ? `其他：${values.remark}` : values.reason;
+      setCancelLoading(true);
+      const res = await adminCancelMemberCard({
         memberId: memberId!,
-        cardId: card._id,
+        reason,
+        phoneLast4: values.phoneLast4,
+        password: values.password,
+        balanceAction: card.balance > 0 ? values.balanceAction : undefined,
       });
       if (!res.success) {
-        throw new Error(res.error?.message ?? '解除关联失败');
+        throw new Error(res.error?.message ?? '注销失败');
       }
-      message.success('会员卡已解除关联');
+      message.success('会员卡已注销');
+      handleCloseCancel();
       queryClient.invalidateQueries({ queryKey: ['memberDetail', memberId] });
     } catch (error) {
-      message.error(error instanceof Error ? error.message : '解除关联失败');
+      message.error(error instanceof Error ? error.message : '注销失败');
+    } finally {
+      setCancelLoading(false);
     }
-  }, [card, memberId, queryClient]);
+  }, [card, memberId, queryClient, cancelForm, handleCloseCancel]);
 
   // Consumption table columns
   const consumptionColumns: ColumnsType<ConsumptionRecord> = [
@@ -311,8 +378,8 @@ export default function MemberDetailPage() {
       children: card ? (
         <div>
           <Space style={{ marginBottom: 12 }}>
-            <Button danger onClick={handleUnbindCard}>
-              解除关联
+            <Button danger onClick={handleOpenCancel}>
+              注销会员卡
             </Button>
           </Space>
           <Descriptions
@@ -327,7 +394,9 @@ export default function MemberDetailPage() {
               ¥{formatAmount(card.totalRecharge)}
             </Descriptions.Item>
             <Descriptions.Item label="折扣等级">
-              {card.discountLevelId}
+              {cardLevel
+                ? `${cardLevel.name}（${cardLevel.discountRate / 10} 折）`
+                : '未设置'}
             </Descriptions.Item>
             <Descriptions.Item label="卡状态">
               {card.status === 'active' ? '正常' : '冻结'}
@@ -346,8 +415,8 @@ export default function MemberDetailPage() {
       ) : (
         <div>
           <Empty description="该会员暂无会员卡" />
-          <Button type="primary" onClick={handleOpenBindCard}>
-            关联会员卡
+          <Button type="primary" onClick={handleOpenCreateCard}>
+            开通会员卡
           </Button>
         </div>
       ),
@@ -402,7 +471,7 @@ export default function MemberDetailPage() {
             编辑信息
           </Button>
         )}
-        <Button onClick={handleOpenRecharge}>充值</Button>
+        {card && <Button onClick={handleOpenRecharge}>充值</Button>}
       </Space>
 
       <Tabs items={tabItems} />
@@ -414,7 +483,7 @@ export default function MemberDetailPage() {
         onOk={handleEditSubmit}
         onCancel={handleEditCancel}
         confirmLoading={editLoading}
-        destroyOnClose
+        forceRender
       >
         <Form form={editForm} layout="vertical">
           <Form.Item
@@ -443,14 +512,9 @@ export default function MemberDetailPage() {
           <Form.Item
             name="birthday"
             label="生日"
-            rules={[
-              {
-                pattern: /^\d{4}-\d{2}-\d{2}$/,
-                message: '生日格式必须为 YYYY-MM-DD',
-              },
-            ]}
+            rules={[{ required: true, message: '请选择生日' }]}
           >
-            <Input placeholder="YYYY-MM-DD" />
+            <DatePicker style={{ width: '100%' }} placeholder="请选择生日" />
           </Form.Item>
         </Form>
       </Modal>
@@ -461,18 +525,30 @@ export default function MemberDetailPage() {
         open={rechargeModalOpen}
         onOk={handleRechargeSubmit}
         onCancel={handleRechargeCancel}
-        destroyOnClose
+        confirmLoading={rechargeLoading}
+        forceRender
       >
         <Form form={rechargeForm} layout="vertical">
           <Form.Item
             name="amount"
             label="充值金额（元）"
+            extra={
+              rechargeMinAmount > 0
+                ? `该卡折扣等级最低充值 ¥${formatAmount(rechargeMinAmount)}`
+                : undefined
+            }
             rules={[
               { required: true, message: '请输入充值金额' },
               {
                 type: 'number',
                 min: 0.01,
                 message: '充值金额必须大于 0',
+              },
+              {
+                validator: (_, value: number | undefined) =>
+                  rechargeMinAmount > 0 && value !== undefined && Math.round(value * 100) < rechargeMinAmount
+                    ? Promise.reject(new Error(`该卡折扣等级最低充值 ¥${formatAmount(rechargeMinAmount)}`))
+                    : Promise.resolve(),
               },
             ]}
           >
@@ -487,23 +563,148 @@ export default function MemberDetailPage() {
         </Form>
       </Modal>
       <Modal
-        title="关联会员卡"
-        open={bindCardModalOpen}
-        onOk={handleSubmitBindCard}
-        onCancel={handleCloseBindCard}
-        confirmLoading={bindCardLoading}
-        destroyOnClose
+        title="开通会员卡"
+        open={createCardModalOpen}
+        onOk={handleSubmitCreateCard}
+        onCancel={handleCloseCreateCard}
+        confirmLoading={createCardLoading}
+        forceRender
       >
-        <Form form={bindCardForm} layout="vertical">
+        <Form form={createCardForm} layout="vertical">
           <Form.Item
-            name="cardId"
-            label="会员卡ID"
+            name="discountLevelId"
+            label="折扣等级"
+            rules={[{ required: true, message: '请选择折扣等级' }]}
+          >
+            <Select
+              placeholder="请选择折扣等级"
+              options={discountLevels.map((item: DiscountLevel) => ({
+                value: item._id,
+                label: `${item.name}（${item.discountRate / 10} 折）`,
+              }))}
+            />
+          </Form.Item>
+          <Form.Item noStyle dependencies={['discountLevelId']}>
+            {({ getFieldValue }) => {
+              const level = discountLevels.find(
+                (l) => l._id === getFieldValue('discountLevelId'),
+              );
+              const minAmount = level?.minRechargeAmount ?? 0;
+              return (
+                <Form.Item
+                  name="amount"
+                  label="充值金额（元）"
+                  extra={
+                    minAmount > 0
+                      ? `该等级最低充值 ¥${formatAmount(minAmount)}`
+                      : undefined
+                  }
+                  rules={[
+                    { required: true, message: '请输入充值金额' },
+                    { type: 'number', min: 0.01, message: '充值金额必须大于 0' },
+                    {
+                      validator: (_, value: number | undefined) =>
+                        minAmount > 0 && value !== undefined && Math.round(value * 100) < minAmount
+                          ? Promise.reject(new Error(`该等级最低充值 ¥${formatAmount(minAmount)}`))
+                          : Promise.resolve(),
+                    },
+                  ]}
+                >
+                  <InputNumber
+                    style={{ width: '100%' }}
+                    min={0.01}
+                    step={1}
+                    precision={2}
+                    placeholder="开卡首充金额"
+                  />
+                </Form.Item>
+              );
+            }}
+          </Form.Item>
+        </Form>
+      </Modal>
+      <Modal
+        title="注销会员卡"
+        open={cancelModalOpen}
+        onOk={handleSubmitCancel}
+        onCancel={handleCloseCancel}
+        confirmLoading={cancelLoading}
+        okText="确认注销"
+        okButtonProps={{ danger: true }}
+        forceRender
+      >
+        {card && (
+          <Descriptions bordered column={1} size="small" style={{ marginBottom: 16 }}>
+            <Descriptions.Item label="卡余额">
+              ¥{formatAmount(card.balance)}
+            </Descriptions.Item>
+            <Descriptions.Item label="累计充值">
+              ¥{formatAmount(card.totalRecharge)}
+            </Descriptions.Item>
+          </Descriptions>
+        )}
+        {card && card.balance > 0 && (
+          <Alert
+            type="error"
+            showIcon
+            style={{ marginBottom: 16 }}
+            message={`该卡余额 ¥${formatAmount(card.balance)}，注销后卡将停用，请选择余额处理方式`}
+          />
+        )}
+        <Form form={cancelForm} layout="vertical">
+          <Form.Item
+            name="reason"
+            label="注销原因"
+            rules={[{ required: true, message: '请选择注销原因' }]}
+          >
+            <Select
+              placeholder="请选择注销原因"
+              options={CANCEL_REASON_OPTIONS.map((item) => ({ value: item, label: item }))}
+            />
+          </Form.Item>
+          <Form.Item noStyle dependencies={['reason']}>
+            {({ getFieldValue }) =>
+              getFieldValue('reason') === '其他' ? (
+                <Form.Item
+                  name="remark"
+                  label="原因说明"
+                  rules={[{ required: true, message: '请填写原因说明' }]}
+                >
+                  <Input.TextArea rows={2} maxLength={200} placeholder="请填写注销原因" />
+                </Form.Item>
+              ) : null
+            }
+          </Form.Item>
+          {card && card.balance > 0 && (
+            <Form.Item
+              name="balanceAction"
+              label="余额处理方式"
+              rules={[{ required: true, message: '请选择余额处理方式' }]}
+            >
+              <Radio.Group
+                options={[
+                  { value: 'refunded_offline', label: '已线下退款（余额留档）' },
+                  { value: 'cleared', label: '余额清零' },
+                ]}
+              />
+            </Form.Item>
+          )}
+          <Form.Item
+            name="phoneLast4"
+            label="会员手机号后 4 位"
             rules={[
-              { required: true, message: '请输入会员卡ID' },
-              { min: 1, message: '会员卡ID不能为空' },
+              { required: true, message: '请输入会员手机号后 4 位' },
+              { pattern: /^\d{4}$/, message: '请输入 4 位数字' },
             ]}
           >
-            <Input placeholder="请输入要关联的会员卡ID" />
+            <Input maxLength={4} placeholder="用于确认会员身份" />
+          </Form.Item>
+          <Form.Item
+            name="password"
+            label="管理员密码"
+            rules={[{ required: true, message: '请输入当前管理员密码' }]}
+          >
+            <Input.Password placeholder="请输入当前登录的管理员密码" />
           </Form.Item>
         </Form>
       </Modal>

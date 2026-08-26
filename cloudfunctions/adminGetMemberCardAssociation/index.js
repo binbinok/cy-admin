@@ -23,7 +23,7 @@ exports.main = async (event = {}) => {
     }
     const { data: cards } = await db
       .collection('member_cards')
-      .where({ memberId })
+      .where({ memberId, status: 'active' })
       .limit(1)
       .get();
     const card = (cards || [])[0] || null;

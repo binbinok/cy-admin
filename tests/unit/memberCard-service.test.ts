@@ -1,13 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
-  adminBindMemberCard,
+  adminCancelMemberCard,
   adminCreateDiscountLevel,
+  adminCreateMemberCard,
   adminDeleteDiscountLevel,
   adminGetCardRechargeRecords,
   adminGetMemberCardAssociation,
   adminGetDiscountLevels,
   adminRechargeCard,
-  adminUnbindMemberCard,
   adminUpdateDiscountLevel,
 } from '@/services/memberCard';
 import http from '@/services/http';
@@ -68,12 +68,25 @@ describe('memberCard service', () => {
   });
 
   it('adminRechargeCard should call expected endpoint', async () => {
-    mockPost.mockResolvedValue({ data: { success: true, data: { balance: 10000 } } });
-    const params = { cardId: 'c1', amount: 10000 };
+    mockPost.mockResolvedValue({
+      data: { success: true, data: { card: { _id: 'c1', memberId: 'M001' }, rechargeRecord: { _id: 'r1' } } },
+    });
+    const params = { memberId: 'M001', amount: 10000 };
     const result = await adminRechargeCard(params);
     expect(mockPost).toHaveBeenCalledWith('/invoke/adminRechargeCard', params);
     expect(result.success).toBe(true);
-    expect(result.data?.balance).toBe(10000);
+    expect(result.data?.card?.memberId).toBe('M001');
+  });
+
+  it('adminCreateMemberCard should call expected endpoint', async () => {
+    mockPost.mockResolvedValue({
+      data: { success: true, data: { _id: 'c9', memberId: 'M001', discountLevelId: 'l1' } },
+    });
+    const params = { memberId: 'M001', discountLevelId: 'l1', amount: 10000 };
+    const result = await adminCreateMemberCard(params);
+    expect(mockPost).toHaveBeenCalledWith('/invoke/adminCreateMemberCard', params);
+    expect(result.success).toBe(true);
+    expect(result.data?.discountLevelId).toBe('l1');
   });
 
   it('adminGetCardRechargeRecords should call expected endpoint', async () => {
@@ -85,30 +98,21 @@ describe('memberCard service', () => {
     expect(result.data?.total).toBe(0);
   });
 
-  it('adminBindMemberCard should call expected endpoint', async () => {
-    mockPost.mockResolvedValue({ data: { success: true, data: { _id: 'c1', memberId: 'M001' } } });
-    const params = { memberId: 'M001', cardId: 'c1' };
-    const result = await adminBindMemberCard(params);
-    expect(mockPost).toHaveBeenCalledWith('/invoke/adminBindMemberCard', params);
+  it('adminCancelMemberCard should call expected endpoint', async () => {
+    mockPost.mockResolvedValue({
+      data: { success: true, data: { _id: 'c1', memberId: 'M001', status: 'cancelled' } },
+    });
+    const params = {
+      memberId: 'M001',
+      reason: '会员要求退卡',
+      phoneLast4: '1234',
+      password: 'admin-password',
+      balanceAction: 'refunded_offline' as const,
+    };
+    const result = await adminCancelMemberCard(params);
+    expect(mockPost).toHaveBeenCalledWith('/invoke/adminCancelMemberCard', params);
     expect(result.success).toBe(true);
-    expect(result.data?.memberId).toBe('M001');
-  });
-
-  it('adminUnbindMemberCard should call expected endpoint', async () => {
-    mockPost.mockResolvedValue({ data: { success: true, data: { _id: 'c1', memberId: '' } } });
-    const params = { memberId: 'M001', cardId: 'c1' };
-    const result = await adminUnbindMemberCard(params);
-    expect(mockPost).toHaveBeenCalledWith('/invoke/adminUnbindMemberCard', params);
-    expect(result.success).toBe(true);
-    expect(result.data?.memberId).toBe('');
-  });
-  it('adminUnbindMemberCard should support unbind by memberId only', async () => {
-    mockPost.mockResolvedValue({ data: { success: true, data: { _id: 'c2', memberId: '' } } });
-    const params = { memberId: 'M002' };
-    const result = await adminUnbindMemberCard(params);
-    expect(mockPost).toHaveBeenCalledWith('/invoke/adminUnbindMemberCard', params);
-    expect(result.success).toBe(true);
-    expect(result.data?._id).toBe('c2');
+    expect(result.data?.status).toBe('cancelled');
   });
 
   it('adminGetMemberCardAssociation should call expected endpoint', async () => {

@@ -12,7 +12,7 @@ const { db, _ } = require('./_shared/db');
  *   - amount：充值金额（单位：分），必须 > 0
  *
  * 行为：
- *   1. 查找或创建该会员的会员卡
+ *   1. 查找该会员已关联的会员卡（无卡时报错，引导先关联或开通）
  *   2. 更新余额（increment）和累计充值（increment）
  *   3. 生成充值流水记录
  *   4. 记录操作日志
@@ -38,43 +38,43 @@ exports.main = async (event = {}) => {
 
     const now = new Date();
 
-    // 查找该会员的会员卡
+    // 查找该会员使用中的会员卡
     const { data: existingCards } = await db
       .collection('member_cards')
-      .where({ memberId })
+      .where({ memberId, status: 'active' })
       .get();
 
-    let cardId;
-    let balanceAfter;
-
-    if (existingCards.length > 0) {
-      // 已有会员卡，更新余额
-      const card = existingCards[0];
-      cardId = card._id;
-      balanceAfter = (card.balance || 0) + rechargeAmount;
-
-      await db.collection('member_cards').doc(cardId).update({
-        data: {
-          balance: _.inc(rechargeAmount),
-          totalRecharge: _.inc(rechargeAmount),
-          updatedAt: now,
-        },
-      });
-    } else {
-      // 没有会员卡，创建一张
-      balanceAfter = rechargeAmount;
-      const cardData = {
-        memberId,
-        discountLevelId: '',
-        balance: rechargeAmount,
-        totalRecharge: rechargeAmount,
-        status: 'active',
-        createdAt: now,
-        updatedAt: now,
-      };
-      const addRes = await db.collection('member_cards').add({ data: cardData });
-      cardId = addRes._id;
+    if (existingCards.length === 0) {
+      return error(AdminErrorCode.NOT_FOUND, '该会员暂无使用中的会员卡，请先开通会员卡');
     }
+
+    // 已有会员卡，按卡的折扣等级校验最低充值门槛
+    const card = existingCards[0];
+    if (card.discountLevelId) {
+      try {
+        const levelRes = await db.collection('card_discount_levels').doc(card.discountLevelId).get();
+        const minRecharge = Number(levelRes.data && levelRes.data.minRechargeAmount) || 0;
+        if (minRecharge > 0 && rechargeAmount < minRecharge) {
+          return error(
+            AdminErrorCode.VALIDATION_ERROR,
+            `该卡折扣等级最低充值 ${minRecharge} 分，当前金额不满足门槛`
+          );
+        }
+      } catch (_e) {
+        // 等级文档缺失时不阻断充值
+      }
+    }
+
+    const cardId = card._id;
+    const balanceAfter = (card.balance || 0) + rechargeAmount;
+
+    await db.collection('member_cards').doc(cardId).update({
+      data: {
+        balance: _.inc(rechargeAmount),
+        totalRecharge: _.inc(rechargeAmount),
+        updatedAt: now,
+      },
+    });
 
     // 生成充值流水记录
     const rechargeRecord = {

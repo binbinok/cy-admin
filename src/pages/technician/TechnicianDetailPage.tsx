@@ -501,7 +501,7 @@ export default function TechnicianDetailPage() {
         onOk={handleEditSubmit}
         onCancel={handleEditCancel}
         confirmLoading={editLoading}
-        destroyOnClose
+        destroyOnHidden
       >
         <Form form={editForm} layout="vertical">
           <Form.Item
