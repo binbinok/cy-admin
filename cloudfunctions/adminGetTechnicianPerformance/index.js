@@ -4,6 +4,7 @@ const { verifyAuth } = require('./_shared/auth');
 const { success, error } = require('./_shared/response');
 const { AdminErrorCode } = require('./_shared/errors');
 const { db, _ } = require('./_shared/db');
+const { getGlobalCommissionConfig } = require('./_shared/commissionConfig');
 
 /**
  * 技师业绩统计：按技师聚合消费记录
@@ -38,19 +39,14 @@ exports.main = async (event = {}) => {
       })
       .get();
 
-    // 查询技师信息（获取提成比例）
-    const technicianIds = [...new Set(records.map((r) => r.technicianId).filter(Boolean))];
-    const technicianMap = new Map();
+    // 查询时间范围内提成记录（按记录时间归属），与提成报表同口径
+    const { data: commissionRecords } = await db.collection('commission_records')
+      .where({
+        createdAt: _.gte(start).and(_.lte(endExclusive)),
+      })
+      .get();
 
-    if (technicianIds.length > 0) {
-      const { data: technicians } = await db.collection('technicians')
-        .where({ _id: _.in(technicianIds) })
-        .get();
-
-      for (const tech of technicians) {
-        technicianMap.set(tech._id, tech);
-      }
-    }
+    const config = await getGlobalCommissionConfig();
 
     // 按技师聚合
     const statMap = new Map();
@@ -61,26 +57,30 @@ exports.main = async (event = {}) => {
         technicianName: record.technicianName || '未知技师',
         orderCount: 0,
         totalAmount: 0,
+        commissionAmount: 0,
       };
       current.orderCount += 1;
       current.totalAmount += record.amount || 0;
       statMap.set(tid, current);
     }
 
-    // 计算提成金额
-    const results = Array.from(statMap.values()).map((item) => {
-      const tech = technicianMap.get(item.technicianId);
-      const commissionRate = tech ? (Number(tech.commissionRate) || 30) : 30;
-      const commissionAmount = Math.floor(item.totalAmount * commissionRate / 100);
-
-      return {
-        ...item,
-        commissionRate,
-        commissionAmount,
+    // 聚合提成金额（手工/开卡/续卡三类，按当前全局比例实时重算）
+    for (const record of commissionRecords) {
+      const tid = record.technicianId || 'unknown';
+      const current = statMap.get(tid) || {
+        technicianId: tid,
+        technicianName: record.technicianName || '未知技师',
+        orderCount: 0,
+        totalAmount: 0,
+        commissionAmount: 0,
       };
-    });
+      const type = ['manual', 'card_open', 'card_renew'].includes(record.type) ? record.type : 'manual';
+      const rate = type === 'card_open' ? config.cardOpenRate : type === 'card_renew' ? config.cardRenewRate : config.manualRate;
+      current.commissionAmount += Math.floor(((record.serviceAmount || 0) * rate) / 100);
+      statMap.set(tid, current);
+    }
 
-    return success(results);
+    return success(Array.from(statMap.values()));
   } catch (err) {
     if (err.code) {
       return error(err.code, err.message);

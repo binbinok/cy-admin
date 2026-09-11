@@ -13,8 +13,7 @@ export interface TechnicianPerformance {
   technicianName: string;
   orderCount: number;
   totalAmount: number; // 分
-  commissionRate?: number; // 提成比例(%)
-  commissionAmount?: number; // 应得提成金额(分)
+  commissionAmount?: number; // 应得提成金额(分，手工/开卡/续卡三类按当前全局比例合计)
 }
 export interface CreateIncomeRecordPayload {
   serviceCategory: string;
