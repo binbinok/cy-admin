@@ -297,6 +297,7 @@ cy-admin/
 8. **HashRouter 下禁止用 `window.location.href = '/xxx'` 做应用内跳转** — 会把浏览器导航到服务器路径，静态托管上无此文件直接 404；本地 dev server 的 SPA fallback 会掩盖该问题，本地正常、线上 404。应用内跳转转用 `navigate()`；需要强制跳转的场景（如未授权登出）用 `window.location.hash = '/login'`。（2026-09 实例：`http.ts` 未授权跳转与 `authStore` 无操作超时跳转均因此在线上 404）
 9. **枚举/常量修改必须全链路同步** — 以支付方式为例：前端 `constants/business.ts`（选项）+ `types/member.ts`（类型）+ 云函数校验（`adminCreateIncomeRecord/index.js` 的 validPaymentTypes、`_shared/settlement.js` 的 VALID_PAYMENT_TYPES）。只改前端会导致用户界面可选、云函数校验拒绝。
 10. **`_shared/` 是每个函数目录下的物理副本** — 批量修改后需同步所有函数目录内副本（可用 sed 批量替换），并重新部署运行时真正引用该模块的函数（如结算链路：adminCreateSettlement / adminCompleteService / adminCreateIncomeRecord）；其余函数的副本为死代码，下次部署时自然带上。
+11. **云函数改动不部署等于没改** — 本地代码与云端运行版本无任何自动同步；改完必须 deploy + invoke 验证，排查线上异常先怀疑"云端还是旧代码"。完整闭环见第 15 节"云函数变更闭环"。
 
 ## 12. 关键文件速查
 
@@ -378,3 +379,14 @@ cy-admin/
 - Bug 修复先给根因分析（文件路径 + 行号 + 数据流）和方案选项，用户选定后再动手
 - 行为变更后必须同步更新对应单测与属性测试断言（如跳转方式变更同时影响 `http.test.ts` 与 `auth.property.test.ts`）
 - 前端静态托管无自动部署：多批前端改动会积累，每完成一批改动后主动提醒重新 `build` + `hosting deploy`
+
+### 云函数变更闭环（防"函数不同步"，强制执行）
+
+2026-09 多轮问题（提成配置 / 次卡卡种列表 INTERNAL_ERROR、业绩提成口径不生效、删除数据后页面仍显示、创建预约误报"服务项目不能为空"）的共同根因都是**云端运行的代码与本地不一致**——改了没部署、新函数没注册、或只部署了部分关联函数。任何涉及云函数的任务必须走完以下闭环，不得中途交付：
+
+1. **改动清单**：动手前列出本次涉及的函数（修改 / 新建 / 删除）。新建函数必须同步三处：函数目录、`cloudbaserc.json` 注册项、`src/constants/api.ts` 常量；缺注册会导致 deploy 跳过或调用失败
+2. **本地修改**：`_shared/` 副本批量同步（陷阱 10）；前端 service 层类型必须与云函数**实际返回字段**对齐——`pendingAppointments`/`pendingCount` 漂移案例说明类型写错会让前端判断静默失效，且 build 不含 tsc，只有 dev checker 能暴露
+3. **部署**：`tcb fn deploy <name> --force --env-id cloud1-1g7yz5w766dd366f`，按改动清单逐个部署；仅批量变更时才用 `--all`。改了一条链路（如结算链路多个函数）要全部部署，不能只部署入口函数
+4. **部署后验证（不可省略）**：用 `tcb fn invoke` 或前端实测触发新代码路径，确认返回符合预期。**遇到 INTERNAL_ERROR 或行为照旧，第一怀疑对象是"云端还是旧代码"，而非本地逻辑**——先 invoke 验证云端版本再排查代码
+5. **收尾**：一次性函数三处删除（云端 `tcb fn delete` + 本地目录 + `cloudbaserc.json` 注册项）；涉及存量数据迁移的，部署后立即执行迁移并抽样核对结果
+6. **交付报告**：任务结束时明确告知用户——部署了哪些函数、验证结果是什么、线上是否已生效、前端静态托管是否需要重新发布
