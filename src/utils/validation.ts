@@ -132,7 +132,7 @@ export function validateDiscountLevel(level: {
 }
 
 /**
- * 验证提成比例（1–100 整数）
+ * 验证提成比例（0–100 整数）
  */
 export function validateCommissionRate(rate: number): ValidationResult {
   const errors: string[] = [];
@@ -140,10 +140,10 @@ export function validateCommissionRate(rate: number): ValidationResult {
   if (
     typeof rate !== 'number' ||
     !Number.isInteger(rate) ||
-    rate < 1 ||
+    rate < 0 ||
     rate > 100
   ) {
-    errors.push('提成比例必须为 1–100 的整数');
+    errors.push('提成比例必须为 0–100 的整数');
   }
 
   return { valid: errors.length === 0, errors };

@@ -237,6 +237,7 @@ exports.main = async (event = {}) => {
         action: 'create_appointment',
         targetType: 'appointment',
         targetId: appointmentId,
+        targetName: memberId ? member.nickName || member.name || '' : guestName,
         detail: memberId
           ? `创建预约 ${appointmentId}，会员 ${member.nickName || ''}，大类 ${category.name || ''}，技师 ${technicianDoc.name || ''}，时间 ${appointmentDate} ${appointmentTime}，时长 ${duration} 分钟`
           : `创建预约 ${appointmentId}，散客 ${guestName}${guestPhone ? `（${guestPhone}）` : ''}，大类 ${category.name || ''}，技师 ${technicianDoc.name || ''}，时间 ${appointmentDate} ${appointmentTime}，时长 ${duration} 分钟`,

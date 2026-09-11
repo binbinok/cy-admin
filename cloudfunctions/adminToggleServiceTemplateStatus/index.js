@@ -15,6 +15,10 @@ exports.main = async (event = {}) => {
   try {
     const adminInfo = verifyAuth(event);
 
+    if (adminInfo.role !== 'super_admin') {
+      return error(AdminErrorCode.FORBIDDEN, '权限不足，仅超级管理员可执行此操作');
+    }
+
     const templateId = String(event.templateId || '').trim();
     const active = event.active === true || event.active === 'true';
     if (!templateId) {
@@ -38,6 +42,7 @@ exports.main = async (event = {}) => {
         action: 'toggle_service_template_status',
         targetType: 'service_template',
         targetId: templateId,
+        targetName: template.categoryName || '',
         detail: `${active ? '启用' : '停用'}服务模板，分类 ${template.categoryName || template.categoryId}`,
         createdAt: now,
       },

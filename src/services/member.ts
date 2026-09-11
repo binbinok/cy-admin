@@ -13,7 +13,7 @@ import type { Member, MemberCard, ConsumptionRecord } from '@/types/member';
 import type { ApiResponse, PageResult } from '@/types/common';
 
 export async function adminGetMemberList(
-  params: { page: number; pageSize: number; keyword?: string; level?: string },
+  params: { page: number; pageSize: number; keyword?: string; level?: string; phoneLast4?: string },
 ): Promise<ApiResponse<PageResult<Member>>> {
   const response = await http.post<ApiResponse<PageResult<Member>>>(
     `/invoke/${CF_GET_MEMBER_LIST}`,

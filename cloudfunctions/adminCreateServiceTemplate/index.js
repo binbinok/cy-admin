@@ -72,6 +72,10 @@ exports.main = async (event = {}) => {
   try {
     const adminInfo = verifyAuth(event);
 
+    if (adminInfo.role !== 'super_admin') {
+      return error(AdminErrorCode.FORBIDDEN, '权限不足，仅超级管理员可执行此操作');
+    }
+
     const categoryId = String(event.categoryId || '').trim();
     if (!categoryId) {
       return error(AdminErrorCode.VALIDATION_ERROR, '服务大类不能为空');
@@ -128,6 +132,7 @@ exports.main = async (event = {}) => {
         action: 'create_service_template',
         targetType: 'service_template',
         targetId: addResult._id,
+        targetName: category.name || '',
         detail: `创建服务模板，分类 ${category.name || categoryId}，默认时长 ${defaultDuration} 分钟，基础项目 ${baseItems.length} 个，附加项目 ${addonItems.length} 个`,
         createdAt: now,
       },

@@ -119,6 +119,16 @@ exports.main = async (event = {}) => {
     const balanceText = currentBalance > 0
       ? `，余额 ${currentBalance} 分处理方式：${balanceAction === 'cleared' ? '清零' : '已线下退款'}`
       : '';
+    let levelName = '';
+    try {
+      const { data: levelDoc } = await db
+        .collection('card_discount_levels')
+        .doc(cardDoc.discountLevelId)
+        .get();
+      levelName = (levelDoc && levelDoc.name) || '';
+    } catch (_e) {
+      levelName = '';
+    }
     await db.collection('operation_logs').add({
       data: {
         adminId: adminInfo.adminId,
@@ -126,7 +136,8 @@ exports.main = async (event = {}) => {
         action: 'cancel_member_card',
         targetType: 'member_card',
         targetId: cardDoc._id,
-        detail: `注销会员 ${memberId} 的会员卡 ${cardDoc._id}，原因：${reason}${balanceText}`,
+        targetName: levelName,
+        detail: `注销会员 ${member.nickName || member.name || ''} 的「${levelName}」会员卡，原因：${reason}${balanceText}`,
         createdAt: now,
       },
     });

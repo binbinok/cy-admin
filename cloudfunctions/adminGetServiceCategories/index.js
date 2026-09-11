@@ -83,7 +83,11 @@ async function ensureDefaultCategories() {
  */
 exports.main = async (event = {}) => {
   try {
-    verifyAuth(event);
+    const adminInfo = verifyAuth(event);
+
+    if (adminInfo.role !== 'super_admin') {
+      return error(AdminErrorCode.FORBIDDEN, '权限不足，仅超级管理员可执行此操作');
+    }
     await ensureDefaultCategories();
     const { data: list } = await db.collection('service_categories')
       .where({ active: true })

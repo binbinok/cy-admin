@@ -23,6 +23,7 @@ exports.main = async (event = {}) => {
         action: 'logout',
         targetType: 'session',
         targetId: adminInfo.adminId,
+        targetName: event.adminName || '',
         detail: '管理员退出登录',
         ipAddress: event.ipAddress || '',
         createdAt: new Date(),

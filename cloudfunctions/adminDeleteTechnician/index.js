@@ -90,6 +90,7 @@ exports.main = async (event = {}) => {
         action: 'delete_technician',
         targetType: 'technician',
         targetId: technicianId,
+        targetName: technicianName,
         detail: `删除技师：${technicianName}`,
         ipAddress: event.ipAddress || '',
         createdAt: new Date(),

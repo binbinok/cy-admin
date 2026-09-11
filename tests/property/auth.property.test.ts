@@ -285,7 +285,7 @@ describe('Property 20: 未授权请求被拒绝', () => {
           signInAnonymouslyMock.mockResolvedValue({});
           Object.defineProperty(window, 'location', {
             writable: true,
-            value: { ...originalLocation, href: '' },
+            value: { ...originalLocation, href: '', hash: '' },
           });
 
           callFunctionMock.mockResolvedValue({
@@ -305,7 +305,7 @@ describe('Property 20: 未授权请求被拒绝', () => {
             const { clearAuth } = useAuthStore.getState();
             const calls = (clearAuth as ReturnType<typeof vi.fn>).mock.calls;
             const didClearAuth = calls.length > 0;
-            const didRedirect = window.location.href === '/login';
+            const didRedirect = window.location.hash === '/login';
             const hasCorrectMessage =
               (err as Error).message === '登录已过期，请重新登录';
             return didClearAuth && didRedirect && hasCorrectMessage;

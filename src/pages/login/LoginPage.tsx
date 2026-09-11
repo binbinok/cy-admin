@@ -25,7 +25,9 @@ export default function LoginPage() {
       console.log('res ', res);
       if (res.success && res.data) {
         login(res.data);
-        navigate('/', { replace: true });
+        const target =
+          res.data.adminInfo?.role === 'super_admin' ? '/' : '/appointments';
+        navigate(target, { replace: true });
       } else {
         console.log(1)
         message.error('用户名或密码错误');

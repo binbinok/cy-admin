@@ -49,7 +49,7 @@ describe('http service', () => {
     // Mock window.location
     Object.defineProperty(window, 'location', {
       writable: true,
-      value: { ...originalLocation, href: '' },
+      value: { ...originalLocation, href: '', hash: '' },
     });
   });
 
@@ -130,7 +130,7 @@ describe('http service', () => {
       );
       const { clearAuth } = useAuthStore.getState();
       expect(clearAuth).toHaveBeenCalled();
-      expect(window.location.href).toBe('/login');
+      expect(window.location.hash).toBe('/login');
     });
     it('should show permission denied message on FORBIDDEN', async () => {
       callFunctionMock.mockResolvedValue({

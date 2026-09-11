@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Button, Card, Form, Input, InputNumber, Modal, Popconfirm, Space, Table, Typography, message } from 'antd';
+import { Button, Card, Form, Input, InputNumber, Modal, Popconfirm, Space, Table, Tabs, Typography, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import {
   adminCreateDiscountLevel,
@@ -10,6 +10,7 @@ import {
 } from '@/services/memberCard';
 import { useAuthStore } from '@/stores/authStore';
 import { formatAmount } from '@/utils/format';
+import SessionCardTypePanel from './SessionCardTypePanel';
 
 const { Title } = Typography;
 
@@ -172,15 +173,30 @@ export default function MemberCardPage() {
         <Title level={4} style={{ margin: 0 }}>
           会员卡与折扣等级管理
         </Title>
-        {isSuperAdmin && (
-          <Button type="primary" onClick={openCreateModal}>
-            新增折扣等级
-          </Button>
-        )}
       </div>
-      <Card>
-        <Table<DiscountLevel> rowKey="_id" columns={displayColumns} loading={loading} dataSource={list} pagination={false} />
-      </Card>
+      <Tabs
+        items={[
+          {
+            key: 'discount',
+            label: '折扣等级',
+            children: (
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
+                  {isSuperAdmin && (
+                    <Button type="primary" onClick={openCreateModal}>
+                      新增折扣等级
+                    </Button>
+                  )}
+                </div>
+                <Card>
+                  <Table<DiscountLevel> rowKey="_id" columns={displayColumns} loading={loading} dataSource={list} pagination={false} />
+                </Card>
+              </div>
+            ),
+          },
+          { key: 'sessionCard', label: '次卡卡种', children: <SessionCardTypePanel /> },
+        ]}
+      />
       <Modal
         title={editing ? '编辑折扣等级' : '新增折扣等级'}
         open={modalOpen}

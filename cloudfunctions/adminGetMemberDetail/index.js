@@ -15,7 +15,7 @@ const { db } = require('./_shared/db');
  */
 exports.main = async (event = {}) => {
   try {
-    verifyAuth(event);
+    const adminInfo = verifyAuth(event);
 
     const memberId = String(event.memberId || '').trim();
     if (!memberId) {
@@ -42,6 +42,17 @@ exports.main = async (event = {}) => {
       .get();
 
     const card = (cards || [])[0] || null;
+
+    // 普通管理员：手机号脱敏且不返回消费记录
+    if (adminInfo.role !== 'super_admin') {
+      const maskedMember = {
+        ...member,
+        phone: member.phone
+          ? String(member.phone).replace(/^(\d{3})\d{4}(\d{4})$/, '$1****$2')
+          : member.phone,
+      };
+      return success({ member: maskedMember, card, consumptions: [] });
+    }
 
     // 查询近期消费记录（最近 10 条）
     const { data: consumptions } = await db

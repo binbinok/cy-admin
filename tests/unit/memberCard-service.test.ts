@@ -8,6 +8,7 @@ import {
   adminGetMemberCardAssociation,
   adminGetDiscountLevels,
   adminRechargeCard,
+  adminUpdateCardLevel,
   adminUpdateDiscountLevel,
 } from '@/services/memberCard';
 import http from '@/services/http';
@@ -71,7 +72,7 @@ describe('memberCard service', () => {
     mockPost.mockResolvedValue({
       data: { success: true, data: { card: { _id: 'c1', memberId: 'M001' }, rechargeRecord: { _id: 'r1' } } },
     });
-    const params = { memberId: 'M001', amount: 10000 };
+    const params = { memberId: 'M001', amount: 10000, commissionTechnicianId: 't1' };
     const result = await adminRechargeCard(params);
     expect(mockPost).toHaveBeenCalledWith('/invoke/adminRechargeCard', params);
     expect(result.success).toBe(true);
@@ -82,7 +83,7 @@ describe('memberCard service', () => {
     mockPost.mockResolvedValue({
       data: { success: true, data: { _id: 'c9', memberId: 'M001', discountLevelId: 'l1' } },
     });
-    const params = { memberId: 'M001', discountLevelId: 'l1', amount: 10000 };
+    const params = { memberId: 'M001', discountLevelId: 'l1', amount: 10000, commissionTechnicianId: 't1' };
     const result = await adminCreateMemberCard(params);
     expect(mockPost).toHaveBeenCalledWith('/invoke/adminCreateMemberCard', params);
     expect(result.success).toBe(true);
@@ -135,5 +136,37 @@ describe('memberCard service', () => {
     expect(result.success).toBe(true);
     expect(result.data?.hasAssociation).toBe(false);
     expect(result.data?.card).toBeNull();
+  });
+
+  it('adminUpdateCardLevel should call expected endpoint', async () => {
+    mockPost.mockResolvedValue({
+      data: { success: true, data: { card: { _id: 'c1', memberId: 'M001', discountLevelId: 'L2' } } },
+    });
+    const params = { memberId: 'M001', targetLevelId: 'L2', reason: '错充纠正' };
+    const result = await adminUpdateCardLevel(params);
+    expect(mockPost).toHaveBeenCalledWith('/invoke/adminUpdateCardLevel', params);
+    expect(result.success).toBe(true);
+    expect(result.data?.card.discountLevelId).toBe('L2');
+  });
+
+  it('adminRechargeCard should expose levelUpgraded when upgrade happens', async () => {
+    mockPost.mockResolvedValue({
+      data: {
+        success: true,
+        data: {
+          card: { _id: 'c1', memberId: 'M001' },
+          rechargeRecord: { _id: 'r1', amount: 100000 },
+          levelUpgraded: {
+            fromLevelId: 'L1',
+            fromLevelName: '银卡',
+            toLevelId: 'L2',
+            toLevelName: '金卡',
+          },
+        },
+      },
+    });
+    const result = await adminRechargeCard({ memberId: 'M001', amount: 100000, commissionTechnicianId: 't1' });
+    expect(result.success).toBe(true);
+    expect(result.data?.levelUpgraded?.toLevelName).toBe('金卡');
   });
 });

@@ -34,16 +34,35 @@ import {
   adminRechargeCard,
   adminCreateMemberCard,
   adminCancelMemberCard,
+  adminUpdateCardLevel,
   type DiscountLevel,
 } from '@/services/memberCard';
 import { maskPhone, formatAmount, formatDate } from '@/utils/format';
 import { validateMemberInfo } from '@/utils/validation';
 import { MEMBER_LEVELS } from '@/constants/business';
-import type { ConsumptionRecord, CardRechargeRecord } from '@/types/member';
+import { getUpgradeTargetLevel } from '@/utils/cardLevel';
+import { adminGetTechnicianList } from '@/services/technician';
+import SessionCardPanel from './SessionCardPanel';
+import type { ConsumptionRecord, CardRechargeRecord, LevelHistoryEntry } from '@/types/member';
 
 const { Title } = Typography;
 const CONSUMPTION_PAGE_SIZE = 10;
 const CANCEL_REASON_OPTIONS = ['会员要求退卡', '操作错误', '其他'] as const;
+
+const getRechargeUpgradeTarget = (
+  levels: DiscountLevel[],
+  currentLevelId: string | undefined,
+  amountYuan: number | undefined,
+): DiscountLevel | undefined => {
+  if (amountYuan === undefined || isNaN(amountYuan)) {
+    return undefined;
+  }
+  return getUpgradeTargetLevel({
+    levels,
+    currentLevelId,
+    amountFen: Math.round(amountYuan * 100),
+  });
+};
 
 export default function MemberDetailPage() {
   const { id: memberId } = useParams<{ id: string }>();
@@ -54,10 +73,12 @@ export default function MemberDetailPage() {
   const [rechargeModalOpen, setRechargeModalOpen] = useState(false);
   const [createCardModalOpen, setCreateCardModalOpen] = useState(false);
   const [cancelModalOpen, setCancelModalOpen] = useState(false);
+  const [adjustLevelModalOpen, setAdjustLevelModalOpen] = useState(false);
   const [consumptionPage, setConsumptionPage] = useState(1);
   const [editForm] = Form.useForm();
   const [rechargeForm] = Form.useForm();
-  const [createCardForm] = Form.useForm<{ discountLevelId: string; amount: number }>();
+  const [createCardForm] = Form.useForm<{ discountLevelId: string; amount: number; commissionTechnicianId: string }>();
+  const [adjustLevelForm] = Form.useForm<{ targetLevelId: string; reason: string }>();
   const [cancelForm] = Form.useForm<{
     reason: string;
     remark?: string;
@@ -69,6 +90,7 @@ export default function MemberDetailPage() {
   const [createCardLoading, setCreateCardLoading] = useState(false);
   const [rechargeLoading, setRechargeLoading] = useState(false);
   const [cancelLoading, setCancelLoading] = useState(false);
+  const [adjustLevelLoading, setAdjustLevelLoading] = useState(false);
 
   const isSuperAdmin = useAuthStore((s) => s.adminInfo?.role === 'super_admin');
 
@@ -92,6 +114,17 @@ export default function MemberDetailPage() {
     },
   });
   const discountLevels = levelData ?? [];
+  const { data: technicianData } = useQuery({
+    queryKey: ['technicianOptions'],
+    queryFn: async () => {
+      const res = await adminGetTechnicianList({ page: 1, pageSize: 100 });
+      return res.data?.list ?? [];
+    },
+  });
+  const technicianOptions = (technicianData ?? []).map((t) => ({
+    label: t.name,
+    value: t._id,
+  }));
   const cardLevel = card?.discountLevelId
     ? discountLevels.find((l) => l._id === card.discountLevelId)
     : undefined;
@@ -198,11 +231,15 @@ export default function MemberDetailPage() {
             const res = await adminRechargeCard({
               memberId: memberId!,
               amount: Math.round(amountYuan * 100),
+              commissionTechnicianId: values.commissionTechnicianId,
             });
             if (!res.success) {
               throw new Error(res.error?.message ?? '充值失败');
             }
-            message.success('充值成功');
+            const upgraded = res.data?.levelUpgraded;
+            message.success(
+              upgraded ? `充值成功，已升级为 ${upgraded.toLevelName} 卡` : '充值成功',
+            );
             setRechargeModalOpen(false);
             rechargeForm.resetFields();
             queryClient.invalidateQueries({ queryKey: ['memberDetail', memberId] });
@@ -233,6 +270,7 @@ export default function MemberDetailPage() {
         memberId: memberId!,
         discountLevelId: values.discountLevelId,
         amount: Math.round(Number(values.amount) * 100),
+        commissionTechnicianId: values.commissionTechnicianId,
       });
       if (!res.success) {
         throw new Error(res.error?.message ?? '开卡失败');
@@ -281,6 +319,65 @@ export default function MemberDetailPage() {
       setCancelLoading(false);
     }
   }, [card, memberId, queryClient, cancelForm, handleCloseCancel]);
+
+  const handleOpenAdjustLevel = useCallback(() => {
+    adjustLevelForm.resetFields();
+    setAdjustLevelModalOpen(true);
+  }, [adjustLevelForm]);
+
+  const handleCloseAdjustLevel = useCallback(() => {
+    setAdjustLevelModalOpen(false);
+    adjustLevelForm.resetFields();
+  }, [adjustLevelForm]);
+
+  const handleSubmitAdjustLevel = useCallback(async () => {
+    try {
+      const values = await adjustLevelForm.validateFields();
+      setAdjustLevelLoading(true);
+      const res = await adminUpdateCardLevel({
+        memberId: memberId!,
+        targetLevelId: values.targetLevelId,
+        reason: values.reason.trim(),
+      });
+      if (!res.success) {
+        throw new Error(res.error?.message ?? '调整失败');
+      }
+      message.success('会员卡等级已调整');
+      handleCloseAdjustLevel();
+      queryClient.invalidateQueries({ queryKey: ['memberDetail', memberId] });
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '调整等级失败');
+    } finally {
+      setAdjustLevelLoading(false);
+    }
+  }, [adjustLevelForm, memberId, queryClient, handleCloseAdjustLevel]);
+
+  const levelHistoryColumns: ColumnsType<LevelHistoryEntry> = [
+    {
+      title: '时间',
+      dataIndex: 'createdAt',
+      key: 'createdAt',
+      render: (val: Date | string) => formatDate(val),
+    },
+    {
+      title: '等级变更',
+      key: 'change',
+      render: (_, record) => `${record.fromLevelName} → ${record.toLevelName}`,
+    },
+    {
+      title: '触发方式',
+      key: 'trigger',
+      render: (_, record) =>
+        record.trigger === 'recharge'
+          ? `充值升级${record.rechargeAmount ? `（充值 ¥${formatAmount(record.rechargeAmount)}）` : ''}`
+          : `手动调整${record.reason ? `（${record.reason}）` : ''}`,
+    },
+    {
+      title: '操作人',
+      dataIndex: 'operatorAdminId',
+      key: 'operatorAdminId',
+    },
+  ];
 
   // Consumption table columns
   const consumptionColumns: ColumnsType<ConsumptionRecord> = [
@@ -378,6 +475,9 @@ export default function MemberDetailPage() {
       children: card ? (
         <div>
           <Space style={{ marginBottom: 12 }}>
+            {isSuperAdmin && (
+              <Button onClick={handleOpenAdjustLevel}>调整等级</Button>
+            )}
             <Button danger onClick={handleOpenCancel}>
               注销会员卡
             </Button>
@@ -402,6 +502,20 @@ export default function MemberDetailPage() {
               {card.status === 'active' ? '正常' : '冻结'}
             </Descriptions.Item>
           </Descriptions>
+          {(card.levelHistory?.length ?? 0) > 0 && (
+            <div style={{ marginBottom: 16 }}>
+              <Title level={5} style={{ marginBottom: 12 }}>
+                等级变更记录
+              </Title>
+              <Table<LevelHistoryEntry>
+                columns={levelHistoryColumns}
+                dataSource={[...(card.levelHistory ?? [])].reverse()}
+                rowKey={(record) => `${record.toLevelId}-${record.createdAt}`}
+                pagination={false}
+                size="small"
+              />
+            </div>
+          )}
           <Title level={5} style={{ marginBottom: 12 }}>
             充值流水
           </Title>
@@ -420,6 +534,11 @@ export default function MemberDetailPage() {
           </Button>
         </div>
       ),
+    },
+    {
+      key: 'sessionCard',
+      label: '次卡',
+      children: <SessionCardPanel memberId={memberId!} />,
     },
   ];
 
@@ -560,6 +679,33 @@ export default function MemberDetailPage() {
               placeholder="请输入充值金额"
             />
           </Form.Item>
+          <Form.Item
+            name="commissionTechnicianId"
+            label="提成员工"
+            rules={[{ required: true, message: '请选择提成员工' }]}
+          >
+            <Select placeholder="请选择提成员工" options={technicianOptions} showSearch optionFilterProp="label" />
+          </Form.Item>
+          <Form.Item noStyle dependencies={['amount']}>
+            {({ getFieldValue }) => {
+              const target = getRechargeUpgradeTarget(
+                discountLevels,
+                card?.discountLevelId,
+                getFieldValue('amount'),
+              );
+              if (!target) {
+                return null;
+              }
+              return (
+                <Alert
+                  style={{ marginBottom: 16 }}
+                  type="success"
+                  showIcon
+                  message={`充值 ¥${Number(getFieldValue('amount')).toFixed(2)} 可升级至【${target.name}】（${target.discountRate / 10} 折）`}
+                />
+              );
+            }}
+          </Form.Item>
         </Form>
       </Modal>
       <Modal
@@ -620,6 +766,13 @@ export default function MemberDetailPage() {
                 </Form.Item>
               );
             }}
+          </Form.Item>
+          <Form.Item
+            name="commissionTechnicianId"
+            label="提成员工"
+            rules={[{ required: true, message: '请选择提成员工' }]}
+          >
+            <Select placeholder="请选择提成员工" options={technicianOptions} showSearch optionFilterProp="label" />
           </Form.Item>
         </Form>
       </Modal>
@@ -705,6 +858,50 @@ export default function MemberDetailPage() {
             rules={[{ required: true, message: '请输入当前管理员密码' }]}
           >
             <Input.Password placeholder="请输入当前登录的管理员密码" />
+          </Form.Item>
+        </Form>
+      </Modal>
+      <Modal
+        title="调整会员卡等级"
+        open={adjustLevelModalOpen}
+        onOk={handleSubmitAdjustLevel}
+        onCancel={handleCloseAdjustLevel}
+        confirmLoading={adjustLevelLoading}
+        forceRender
+      >
+        {card && (
+          <Alert
+            style={{ marginBottom: 16 }}
+            type="info"
+            showIcon
+            message={`当前等级：${cardLevel ? `${cardLevel.name}（${cardLevel.discountRate / 10} 折）` : '未设置'}`}
+          />
+        )}
+        <Form form={adjustLevelForm} layout="vertical">
+          <Form.Item
+            name="targetLevelId"
+            label="目标等级"
+            rules={[{ required: true, message: '请选择目标等级' }]}
+          >
+            <Select
+              placeholder="请选择目标等级"
+              options={discountLevels
+                .filter((item: DiscountLevel) => item._id !== card?.discountLevelId)
+                .map((item: DiscountLevel) => ({
+                  value: item._id,
+                  label: `${item.name}（${item.discountRate / 10} 折，最低充值 ¥${formatAmount(item.minRechargeAmount)}）`,
+                }))}
+            />
+          </Form.Item>
+          <Form.Item
+            name="reason"
+            label="调整原因"
+            rules={[
+              { required: true, message: '请填写调整原因' },
+              { whitespace: true, message: '调整原因不能为空' },
+            ]}
+          >
+            <Input.TextArea rows={2} maxLength={200} placeholder="例如：错充纠正、线下协商调级" />
           </Form.Item>
         </Form>
       </Modal>

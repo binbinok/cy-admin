@@ -71,6 +71,10 @@ exports.main = async (event = {}) => {
   try {
     const adminInfo = verifyAuth(event);
 
+    if (adminInfo.role !== 'super_admin') {
+      return error(AdminErrorCode.FORBIDDEN, '权限不足，仅超级管理员可执行此操作');
+    }
+
     const templateId = String(event.templateId || '').trim();
     if (!templateId) {
       return error(AdminErrorCode.VALIDATION_ERROR, '模板 ID 不能为空');
@@ -118,6 +122,7 @@ exports.main = async (event = {}) => {
         action: 'update_service_template',
         targetType: 'service_template',
         targetId: templateId,
+        targetName: template.categoryName || '',
         detail: `更新服务模板，分类 ${template.categoryName || template.categoryId}，更新字段：${Object.keys(updateData).filter((k) => k !== 'updatedAt').join('、') || '无'}`,
         createdAt: new Date(),
       },

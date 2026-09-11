@@ -25,12 +25,31 @@ function maskPhone(phone) {
  */
 exports.main = async (event = {}) => {
   try {
-    verifyAuth(event);
+    const adminInfo = verifyAuth(event);
 
     const keyword = String(event.keyword || '').trim();
+    const phoneLast4 = String(event.phoneLast4 || '').trim();
     const level = String(event.level || '').trim();
     const page = Math.max(Number(event.page) || 1, 1);
     const pageSize = Math.min(Math.max(Number(event.pageSize) || 20, 1), 100);
+
+    // 普通管理员必须提供手机号后 4 位，仅返回尾号匹配会员
+    if (adminInfo.role !== 'super_admin') {
+      if (!/^\d{4}$/.test(phoneLast4)) {
+        return error(AdminErrorCode.VALIDATION_ERROR, '请输入手机号后 4 位查询会员');
+      }
+      const regex = db.RegExp({ regexp: `${phoneLast4}$` });
+      const { data: list } = await db
+        .collection('members')
+        .where({ phone: regex })
+        .limit(10)
+        .get();
+      const maskedList = (list || []).map((m) => ({
+        ...m,
+        phone: m.phone ? maskPhone(m.phone) : m.phone,
+      }));
+      return success({ list: maskedList, total: maskedList.length });
+    }
 
     // 构建查询
     let query;

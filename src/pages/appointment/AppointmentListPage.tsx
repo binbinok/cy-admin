@@ -1,9 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   Table,
   Tag,
   Modal,
   Select,
+  Segmented,
   AutoComplete,
   DatePicker,
   Input,
@@ -18,7 +20,6 @@ import { SearchOutlined, PlusOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import type { Dayjs } from 'dayjs';
-import { useNavigate } from 'react-router-dom';
 import {
   adminGetAppointmentList,
   adminCreateAppointment,
@@ -29,8 +30,9 @@ import { adminGetTechnicianList } from '@/services/technician';
 import { adminGetServiceTemplates } from '@/services/service';
 import { adminGetMemberList } from '@/services/member';
 import { SEARCH_DEBOUNCE_MS } from '@/constants/business';
-import { useIncomePrefillStore } from '@/stores/incomePrefillStore';
-import { useUiStore } from '@/stores/uiStore';
+import IncomeEntryModal from '@/components/settlement/IncomeEntryModal';
+import ScheduleBoard from '@/components/appointment/ScheduleBoard';
+import { useAuthStore } from '@/stores/authStore';
 import type { Appointment } from '@/types/appointment';
 import type { Technician } from '@/types/technician';
 import type { ServiceTemplate } from '@/types/service';
@@ -57,7 +59,9 @@ const STATUS_MAP: Record<string, { label: string; color: string }> = {
 
 export default function AppointmentListPage() {
   const today = dayjs().format('YYYY-MM-DD');
-  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const isSuperAdmin = useAuthStore((s) => s.adminInfo?.role === 'super_admin');
+  const [view, setView] = useState<'list' | 'board'>('board');
 
   const [page, setPage] = useState(1);
   const [dateRange, setDateRange] = useState<[string, string]>([today, today]);
@@ -83,6 +87,7 @@ export default function AppointmentListPage() {
   const [createForm] = Form.useForm();
   const [templateOptions, setTemplateOptions] = useState<ServiceTemplate[]>([]);
   const [memberOptions, setMemberOptions] = useState<{ value: string; label: string; memberId: string }[]>([]);
+  const [completeTarget, setCompleteTarget] = useState<Appointment | null>(null);
 
   // Debounce keyword search
   useEffect(() => {
@@ -149,6 +154,10 @@ export default function AppointmentListPage() {
     fetchList();
   }, [fetchList]);
 
+  const refreshBoard = useCallback((): void => {
+    queryClient.invalidateQueries({ queryKey: ['appointmentBoard'] });
+  }, [queryClient]);
+
   const handleDateRangeChange = useCallback(
     (dates: [Dayjs | null, Dayjs | null] | null) => {
       if (dates && dates[0] && dates[1]) {
@@ -191,6 +200,7 @@ export default function AppointmentListPage() {
             if (res.success) {
               message.success('已确认到店');
               fetchList();
+              refreshBoard();
             } else {
               message.error(res.error?.message ?? '操作失败');
             }
@@ -200,31 +210,13 @@ export default function AppointmentListPage() {
         },
       });
     },
-    [fetchList],
+    [fetchList, refreshBoard],
   );
 
-  // 完成服务：跳转财务统计页的收入录入弹框并预填预约信息
-  const handleOpenComplete = useCallback(
-    (record: Appointment) => {
-      useIncomePrefillStore.getState().setIncomePrefill({
-        appointmentId: record._id,
-        serviceId: record.serviceId,
-        serviceName: record.serviceName,
-        serviceCategory: record.categoryName ?? record.serviceName,
-        categoryId: record.categoryId,
-        categoryName: record.categoryName,
-        duration: record.duration,
-        technicianId: record.technicianId,
-        memberId: record.memberId,
-        guestName: record.guestName,
-        serviceTime: `${record.appointmentDate} ${record.appointmentTime}`,
-        note: record.note,
-      });
-      useUiStore.getState().setSelectedMenuKey('/finance');
-      navigate('/finance');
-    },
-    [navigate],
-  );
+  // 完成服务：当前页打开结算录入组件并预填预约信息
+  const handleOpenComplete = useCallback((record: Appointment) => {
+    setCompleteTarget(record);
+  }, []);
 
   // Cancel appointment
   const handleCancelAppointment = useCallback(
@@ -241,6 +233,7 @@ export default function AppointmentListPage() {
             if (res.success) {
               message.success('预约已取消');
               fetchList();
+              refreshBoard();
             } else {
               message.error(res.error?.message ?? '操作失败');
             }
@@ -250,7 +243,7 @@ export default function AppointmentListPage() {
         },
       });
     },
-    [fetchList],
+    [fetchList, refreshBoard],
   );
 
   // 打开新增预约弹窗
@@ -260,34 +253,61 @@ export default function AppointmentListPage() {
       appointmentDate: dayjs(),
       appointmentTime: dayjs(),
     });
+    setMemberOptions([]);
 
-    // 加载服务大类（启用模板）与会员选项
+    // 加载服务大类（启用模板）；超级管理员预加载会员，普通管理员需按手机尾号查询
     try {
-      const [templateRes, memberRes] = await Promise.all([
-        adminGetServiceTemplates({ activeOnly: true }),
-        adminGetMemberList({ page: 1, pageSize: 100 }),
-      ]);
-
+      const templateRes = await adminGetServiceTemplates({ activeOnly: true });
       if (templateRes.success && templateRes.data) {
         setTemplateOptions(templateRes.data);
       }
-
-      if (memberRes.success && memberRes.data) {
-        const data = memberRes.data as PageResult<Member>;
-        setMemberOptions(
-          data.list.map((m) => {
-            // 选中后输入框展示会员名称（手机号已由接口层脱敏）
-            const display = `${m.nickName || '未命名会员'}${m.phone ? `（${m.phone}）` : ''}`;
-            return { value: display, label: display, memberId: m.memberId };
-          }),
-        );
+      if (isSuperAdmin) {
+        const memberRes = await adminGetMemberList({ page: 1, pageSize: 100 });
+        if (memberRes.success && memberRes.data) {
+          const data = memberRes.data as PageResult<Member>;
+          setMemberOptions(
+            data.list.map((m) => {
+              // 选中后输入框展示会员名称（手机号已由接口层脱敏）
+              const display = `${m.nickName || '未命名会员'}${m.phone ? `（${m.phone}）` : ''}`;
+              return { value: display, label: display, memberId: m.memberId };
+            }),
+          );
+        }
       }
     } catch {
       message.warning('选项加载失败，请稍后重试');
     }
 
     setCreateModalOpen(true);
-  }, [createForm]);
+  }, [createForm, isSuperAdmin]);
+
+  // 普通管理员：按手机号后 4 位查询会员
+  const handleMemberSearch = useCallback(
+    async (input: string) => {
+      if (isSuperAdmin || !/^\d{4}$/.test(input.trim())) {
+        return;
+      }
+      try {
+        const res = await adminGetMemberList({
+          page: 1,
+          pageSize: 10,
+          phoneLast4: input.trim(),
+        });
+        if (res.success && res.data) {
+          const data = res.data as PageResult<Member>;
+          setMemberOptions(
+            data.list.map((m) => {
+              const display = `${m.nickName || '未命名会员'}${m.phone ? `（${m.phone}）` : ''}`;
+              return { value: display, label: display, memberId: m.memberId };
+            }),
+          );
+        }
+      } catch {
+        message.warning('会员查询失败，请稍后重试');
+      }
+    },
+    [isSuperAdmin],
+  );
 
   // 关闭新增预约弹窗
   const handleCloseCreateModal = useCallback(() => {
@@ -461,24 +481,36 @@ export default function AppointmentListPage() {
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-        <Title level={4} style={{ margin: 0 }}>
-          预约订单管理
-        </Title>
+        <Space size={16}>
+          <Title level={4} style={{ margin: 0 }}>
+            预约订单管理
+          </Title>
+          <Segmented
+            value={view}
+            onChange={(value) => setView(value as 'list' | 'board')}
+            options={[
+              { value: 'board', label: '看板视图' },
+              { value: 'list', label: '列表视图' },
+            ]}
+          />
+        </Space>
         <Button type="primary" icon={<PlusOutlined />} onClick={handleOpenCreateModal}>
           新增预约
         </Button>
       </div>
 
       <Space style={{ marginBottom: 16 }} wrap>
-        <RangePicker
-          value={
-            dateRange[0] && dateRange[1]
-              ? [dayjs(dateRange[0]), dayjs(dateRange[1])]
-              : null
-          }
-          onChange={handleDateRangeChange}
-          allowClear
-        />
+        {view === 'list' && (
+          <RangePicker
+            value={
+              dateRange[0] && dateRange[1]
+                ? [dayjs(dateRange[0]), dayjs(dateRange[1])]
+                : null
+            }
+            onChange={handleDateRangeChange}
+            allowClear
+          />
+        )}
         <Select
           placeholder="技师"
           allowClear
@@ -487,37 +519,50 @@ export default function AppointmentListPage() {
           onChange={handleTechnicianChange}
           options={technicianOptions}
         />
-        <Select
-          placeholder="状态"
-          allowClear
-          style={{ width: 140 }}
-          value={status}
-          onChange={handleStatusChange}
-          options={STATUS_OPTIONS}
-        />
-        <Input
-          placeholder="搜索会员"
-          prefix={<SearchOutlined />}
-          allowClear
-          style={{ width: 220 }}
-          value={keyword}
-          onChange={(e) => setKeyword(e.target.value)}
-        />
+        {view === 'list' && (
+          <>
+            <Select
+              placeholder="状态"
+              allowClear
+              style={{ width: 140 }}
+              value={status}
+              onChange={handleStatusChange}
+              options={STATUS_OPTIONS}
+            />
+            <Input
+              placeholder="搜索会员"
+              prefix={<SearchOutlined />}
+              allowClear
+              style={{ width: 220 }}
+              value={keyword}
+              onChange={(e) => setKeyword(e.target.value)}
+            />
+          </>
+        )}
       </Space>
 
-      <Table<Appointment>
-        columns={columns}
-        dataSource={appointmentList}
-        rowKey="appointmentId"
-        loading={loading}
-        pagination={{
-          current: page,
-          pageSize: PAGE_SIZE,
-          total,
-          onChange: setPage,
-          showTotal: (t) => `共 ${t} 条`,
-        }}
-      />
+      {view === 'list' ? (
+        <Table<Appointment>
+          columns={columns}
+          dataSource={appointmentList}
+          rowKey="appointmentId"
+          loading={loading}
+          pagination={{
+            current: page,
+            pageSize: PAGE_SIZE,
+            total,
+            onChange: setPage,
+            showTotal: (t) => `共 ${t} 条`,
+          }}
+        />
+      ) : (
+        <ScheduleBoard
+          technicianId={technicianId}
+          onConfirmArrival={handleConfirmArrival}
+          onComplete={handleOpenComplete}
+          onCancel={handleCancelAppointment}
+        />
+      )}
 
       <Modal
 
@@ -535,8 +580,13 @@ export default function AppointmentListPage() {
             label="会员"
           >
             <AutoComplete
-              placeholder="请选择会员或输入散客姓名"
+              placeholder={
+                isSuperAdmin
+                  ? '请选择会员或输入散客姓名'
+                  : '输入会员手机号后 4 位查询，或直接输入散客姓名'
+              }
               options={memberOptions}
+              onSearch={handleMemberSearch}
               filterOption={(input, option) =>
                 (option?.label ?? '').toString().includes(input)
               }
@@ -631,6 +681,28 @@ export default function AppointmentListPage() {
           </Form.Item>
         </Form>
       </Modal>
+
+      <IncomeEntryModal
+        open={completeTarget !== null}
+        prefill={
+          completeTarget
+            ? {
+                appointmentId: completeTarget._id,
+                categoryId: completeTarget.categoryId,
+                technicianId: completeTarget.technicianId,
+                memberId: completeTarget.memberId || undefined,
+                guestName: completeTarget.guestName,
+                serviceTime: `${completeTarget.appointmentDate} ${completeTarget.appointmentTime}`,
+                note: completeTarget.note,
+              }
+            : undefined
+        }
+        onClose={() => setCompleteTarget(null)}
+        onSuccess={() => {
+          fetchList();
+          refreshBoard();
+        }}
+      />
     </div>
   );
 }

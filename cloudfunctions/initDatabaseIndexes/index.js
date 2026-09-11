@@ -5,8 +5,9 @@ const { success } = require('./_shared/response');
 const { db } = require('./_shared/db');
 
 /**
- * 数据库索引初始化
- * 用于创建或更新集合的索引，提升查询性能
+ * 数据库初始化
+ * 1. 创建缺失的集合（CloudBase 要求集合显式创建后才能读写）
+ * 2. 记录建议创建的索引（需控制台手动创建）
  *
  * @param {{ force?: boolean }} event
  */
@@ -17,9 +18,37 @@ exports.main = async (event = {}) => {
 
     const results = [];
 
-    // CloudBase NoSQL 索引创建方式
-    // 使用 collection().where().orderBy() 等查询时，系统会自动优化
-    // 对于复合查询，建议在 CloudBase 控制台手动创建索引
+    const collections = [
+      'admin_accounts',
+      'members',
+      'technicians',
+      'services',
+      'service_templates',
+      'appointments',
+      'operation_logs',
+      'discount_levels',
+      'member_cards',
+      'consumption_records',
+      'commission_records',
+      'card_recharge_records',
+      'session_card_types',
+      'member_session_cards',
+      'session_card_redemptions',
+    ];
+
+    for (const name of collections) {
+      try {
+        await db.createCollection(name);
+        results.push({ collection: name, status: 'created' });
+      } catch (err) {
+        const message = String((err && err.message) || '');
+        if (message.includes('exist') || message.includes('already')) {
+          results.push({ collection: name, status: 'exists' });
+        } else {
+          results.push({ collection: name, status: 'failed', message });
+        }
+      }
+    }
 
     // 记录需要创建的索引信息
     const indexes = [
@@ -73,6 +102,16 @@ exports.main = async (event = {}) => {
         name: 'categoryId_1_createdAt_-1',
         fields: { categoryId: 1, createdAt: -1 },
       },
+      {
+        collection: 'member_session_cards',
+        name: 'memberId_1_status_1',
+        fields: { memberId: 1, status: 1 },
+      },
+      {
+        collection: 'session_card_redemptions',
+        name: 'cardId_1_createdAt_-1',
+        fields: { cardId: 1, createdAt: -1 },
+      },
     ];
 
     // 由于 CloudBase Node SDK 不直接支持 createIndex
@@ -88,7 +127,7 @@ exports.main = async (event = {}) => {
     }
 
     return success({
-      message: '索引配置已记录，请在 CloudBase 控制台手动创建以下索引',
+      message: '数据库初始化完成：集合已创建，索引请在 CloudBase 控制台手动创建',
       results,
     });
   } catch (err) {

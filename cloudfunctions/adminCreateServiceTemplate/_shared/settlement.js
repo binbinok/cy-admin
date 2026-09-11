@@ -4,7 +4,7 @@ const { db, _ } = require('./db');
 const { AdminError, AdminErrorCode } = require('./errors');
 
 /** 合法支付方式枚举（含美团） */
-const VALID_PAYMENT_TYPES = ['member_card', 'cash', 'meituan', 'wechat', 'alipay'];
+const VALID_PAYMENT_TYPES = ['member_card', 'cash', 'meituan', 'wechat', 'alipay', 'douyin', 'other'];
 /** 支付明细最大组数 */
 const MAX_PAYMENT_GROUPS = 3;
 /** 默认技师提成比例（%） */

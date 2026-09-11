@@ -194,14 +194,14 @@ describe('validateDiscountLevel', () => {
 });
 
 describe('validateCommissionRate', () => {
-  it('should accept valid rates (1–100 integer)', () => {
-    expect(validateCommissionRate(1).valid).toBe(true);
+  it('should accept valid rates (0–100 integer)', () => {
+    expect(validateCommissionRate(0).valid).toBe(true);
     expect(validateCommissionRate(30).valid).toBe(true);
     expect(validateCommissionRate(100).valid).toBe(true);
   });
 
-  it('should reject rate < 1', () => {
-    expect(validateCommissionRate(0).valid).toBe(false);
+  it('should reject rate < 0', () => {
+    expect(validateCommissionRate(-1).valid).toBe(false);
   });
 
   it('should reject rate > 100', () => {

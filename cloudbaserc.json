@@ -40,6 +40,15 @@
       }
     },
     {
+      "name": "adminProbeCommission",
+      "type": "Event",
+      "handler": "index.main",
+      "timeout": 30,
+      "runtime": "Nodejs18.15",
+      "memorySize": 256,
+      "installDependency": true
+    },
+    {
       "name": "adminCompleteService",
       "type": "Event",
       "handler": "index.main",
@@ -521,6 +530,114 @@
     },
     {
       "name": "adminRechargeCard",
+      "type": "Event",
+      "handler": "index.main",
+      "timeout": 10,
+      "runtime": "Nodejs18.15",
+      "memorySize": 256,
+      "installDependency": true,
+      "envVariables": {
+        "JWT_SECRET": "lkj123jilkjsad012klz0awfjhlsdfkjasdfijl123kj23joij"
+      }
+    },
+    {
+      "name": "adminUpdateCardLevel",
+      "type": "Event",
+      "handler": "index.main",
+      "timeout": 10,
+      "runtime": "Nodejs18.15",
+      "memorySize": 256,
+      "installDependency": true,
+      "envVariables": {
+        "JWT_SECRET": "lkj123jilkjsad012klz0awfjhlsdfkjasdfijl123kj23joij"
+      }
+    },
+    {
+      "name": "adminCreateSessionCardType",
+      "type": "Event",
+      "handler": "index.main",
+      "timeout": 10,
+      "runtime": "Nodejs18.15",
+      "memorySize": 256,
+      "installDependency": true,
+      "envVariables": {
+        "JWT_SECRET": "lkj123jilkjsad012klz0awfjhlsdfkjasdfijl123kj23joij"
+      }
+    },
+    {
+      "name": "adminUpdateSessionCardType",
+      "type": "Event",
+      "handler": "index.main",
+      "timeout": 10,
+      "runtime": "Nodejs18.15",
+      "memorySize": 256,
+      "installDependency": true,
+      "envVariables": {
+        "JWT_SECRET": "lkj123jilkjsad012klz0awfjhlsdfkjasdfijl123kj23joij"
+      }
+    },
+    {
+      "name": "adminGetSessionCardTypes",
+      "type": "Event",
+      "handler": "index.main",
+      "timeout": 10,
+      "runtime": "Nodejs18.15",
+      "memorySize": 256,
+      "installDependency": true,
+      "envVariables": {
+        "JWT_SECRET": "lkj123jilkjsad012klz0awfjhlsdfkjasdfijl123kj23joij"
+      }
+    },
+    {
+      "name": "adminToggleSessionCardType",
+      "type": "Event",
+      "handler": "index.main",
+      "timeout": 10,
+      "runtime": "Nodejs18.15",
+      "memorySize": 256,
+      "installDependency": true,
+      "envVariables": {
+        "JWT_SECRET": "lkj123jilkjsad012klz0awfjhlsdfkjasdfijl123kj23joij"
+      }
+    },
+    {
+      "name": "adminIssueSessionCard",
+      "type": "Event",
+      "handler": "index.main",
+      "timeout": 10,
+      "runtime": "Nodejs18.15",
+      "memorySize": 256,
+      "installDependency": true,
+      "envVariables": {
+        "JWT_SECRET": "lkj123jilkjsad012klz0awfjhlsdfkjasdfijl123kj23joij"
+      }
+    },
+    {
+      "name": "adminGetMemberSessionCards",
+      "type": "Event",
+      "handler": "index.main",
+      "timeout": 10,
+      "runtime": "Nodejs18.15",
+      "memorySize": 256,
+      "installDependency": true,
+      "envVariables": {
+        "JWT_SECRET": "lkj123jilkjsad012klz0awfjhlsdfkjasdfijl123kj23joij"
+      }
+    },
+    {
+      "name": "adminRefundSessionCard",
+      "type": "Event",
+      "handler": "index.main",
+      "timeout": 10,
+      "runtime": "Nodejs18.15",
+      "memorySize": 256,
+      "installDependency": true,
+      "envVariables": {
+        "JWT_SECRET": "lkj123jilkjsad012klz0awfjhlsdfkjasdfijl123kj23joij"
+      }
+    },
+    {
+      "name": "adminGetPrepaidSummary",
       "type": "Event",
       "handler": "index.main",
       "timeout": 10,

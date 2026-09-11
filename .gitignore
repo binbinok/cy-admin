@@ -21,3 +21,9 @@ npm-debug.log*
 
 # 误生成的嵌套项目副本
 cy-admin/
+
+# 一次性数据导入工作文件（含会员个人信息）
+import-data/
+
+# 手动打包的部署产物
+dist.zip

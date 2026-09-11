@@ -145,7 +145,7 @@ function handleUnauthorized(): never {
   localStorage.removeItem(ADMIN_INFO_KEY);
   const { clearAuth } = useAuthStore.getState();
   clearAuth();
-  window.location.href = '/login';
+  window.location.hash = '/login';
   throw new Error('登录已过期，请重新登录');
 }
 

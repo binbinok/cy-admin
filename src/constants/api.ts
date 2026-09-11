@@ -79,6 +79,17 @@ export const CF_DEDUCT_CARD_BALANCE = 'adminDeductCardBalance';
 export const CF_CANCEL_MEMBER_CARD = 'adminCancelMemberCard';
 export const CF_CREATE_MEMBER_CARD = 'adminCreateMemberCard';
 export const CF_GET_MEMBER_CARD_ASSOCIATION = 'adminGetMemberCardAssociation';
+export const CF_UPDATE_CARD_LEVEL = 'adminUpdateCardLevel';
+
+// 次卡模块
+export const CF_CREATE_SESSION_CARD_TYPE = 'adminCreateSessionCardType';
+export const CF_UPDATE_SESSION_CARD_TYPE = 'adminUpdateSessionCardType';
+export const CF_GET_SESSION_CARD_TYPES = 'adminGetSessionCardTypes';
+export const CF_TOGGLE_SESSION_CARD_TYPE = 'adminToggleSessionCardType';
+export const CF_ISSUE_SESSION_CARD = 'adminIssueSessionCard';
+export const CF_GET_MEMBER_SESSION_CARDS = 'adminGetMemberSessionCards';
+export const CF_REFUND_SESSION_CARD = 'adminRefundSessionCard';
+export const CF_GET_PREPAID_SUMMARY = 'adminGetPrepaidSummary';
 
 // 操作日志模块
 export const CF_GET_OPERATION_LOGS = 'adminGetOperationLogs';

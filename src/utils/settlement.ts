@@ -4,6 +4,7 @@ export interface SettlementPriceItem {
   readonly price: number;
   readonly discountable: boolean;
   readonly commissionable: boolean;
+  readonly paidBySessionCard?: boolean;
 }
 
 export interface SettlementAmountsInput {
@@ -21,6 +22,7 @@ export interface SettlementAmounts {
   readonly adjustAmount: number;
   readonly actualAmount: number;
   readonly commissionableAmount: number;
+  readonly sessionCoveredAmount: number;
 }
 
 const sumPrices = (items: readonly { readonly price: number }[]): number =>
@@ -29,20 +31,30 @@ const sumPrices = (items: readonly { readonly price: number }[]): number =>
 const sumFlaggedPrices = (
   items: readonly SettlementPriceItem[],
   flag: 'discountable' | 'commissionable',
-): number => items.filter((item) => item[flag]).reduce((sum, item) => sum + item.price, 0);
+): number =>
+  items
+    .filter((item) => item[flag] && !item.paidBySessionCard)
+    .reduce((sum, item) => sum + item.price, 0);
 
 export function computeSettlementAmounts(input: SettlementAmountsInput): SettlementAmounts {
   const { baseItem, addons, customAddons, discountRate, adjustAmount } = input;
   const originalAmount = baseItem.price + sumPrices(addons) + sumPrices(customAddons);
+  const sessionCoveredAmount =
+    (baseItem.paidBySessionCard ? baseItem.price : 0) +
+    addons
+      .filter((item) => item.paidBySessionCard)
+      .reduce((sum, item) => sum + item.price, 0);
   const discountableTotal =
-    (baseItem.discountable ? baseItem.price : 0) + sumFlaggedPrices(addons, 'discountable');
+    (baseItem.discountable && !baseItem.paidBySessionCard ? baseItem.price : 0) +
+    sumFlaggedPrices(addons, 'discountable');
   const discountAmount =
     discountableTotal - Math.floor((discountableTotal * discountRate) / 100);
-  const receivableAmount = originalAmount - discountAmount;
+  const receivableAmount = originalAmount - sessionCoveredAmount - discountAmount;
   const actualAmount = receivableAmount + adjustAmount;
   const commissionableAmount =
-    (baseItem.commissionable ? baseItem.price : 0) + sumFlaggedPrices(addons, 'commissionable');
-  return { originalAmount, discountAmount, receivableAmount, adjustAmount, actualAmount, commissionableAmount };
+    (baseItem.commissionable && !baseItem.paidBySessionCard ? baseItem.price : 0) +
+    sumFlaggedPrices(addons, 'commissionable');
+  return { originalAmount, discountAmount, receivableAmount, adjustAmount, actualAmount, commissionableAmount, sessionCoveredAmount };
 }
 
 export function calculateSettlementPoints(actualAmount: number): number {

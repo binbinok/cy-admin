@@ -94,6 +94,7 @@ exports.main = async (event = {}) => {
         action: 'update_member',
         targetType: 'member',
         targetId: memberId,
+        targetName: member.nickName || member.name || '',
         detail: `编辑会员信息：${Object.keys(updateData).filter((k) => k !== 'updatedAt').join('、')}`,
         ipAddress: event.ipAddress || '',
         createdAt: now,

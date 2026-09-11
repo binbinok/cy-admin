@@ -17,7 +17,8 @@ const { executeSettlement } = require('./_shared/settlement');
  *   addons?: [{ itemId, inputValue?, price }],
  *   customAddons?: [{ name, price, reason }],   // 模板外兜底，默认不折扣不提成
  *   adjustAmount?, adjustReason?,     // 改价（分），非 0 时原因必填
- *   paymentDetails: [{ paymentType, amount }],  // 合计必须等于实收
+ *   paymentDetails: [{ paymentType, amount }],  // 合计必须等于实收；次卡全额抵扣时可为空
+ *   sessionCardId?,                 // 可选；会员次卡核销，固定核销 1 次
  *   note?
  * }
  *

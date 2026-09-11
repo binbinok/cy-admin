@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Outlet, useNavigate, useLocation } from 'react-router-dom';
+import { Outlet, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { Layout, Menu, Button, Space, Typography } from 'antd';
 import {
   DashboardOutlined,
@@ -28,15 +28,15 @@ type MenuItem = Required<MenuProps>['items'][number];
 
 const menuItems: MenuItem[] = [
   { key: '/', icon: <DashboardOutlined />, label: '首页' },
-  { key: '/admin', icon: <UserOutlined />, label: '管理员账号' },
-  { key: '/members', icon: <TeamOutlined />, label: '会员管理' },
-  { key: '/technicians', icon: <SolutionOutlined />, label: '技师管理' },
-  { key: '/services', icon: <AppstoreOutlined />, label: '服务项目' },
   { key: '/appointments', icon: <CalendarOutlined />, label: '预约订单' },
-  { key: '/finance', icon: <BarChartOutlined />, label: '财务统计' },
-  { key: '/commission', icon: <DollarOutlined />, label: '提成核算' },
+  { key: '/services', icon: <AppstoreOutlined />, label: '服务项目' },
+  { key: '/members', icon: <TeamOutlined />, label: '会员管理' },
   { key: '/member-relations', icon: <HeartOutlined />, label: '会员关系' },
   { key: '/member-cards', icon: <CreditCardOutlined />, label: '会员卡管理' },
+  { key: '/technicians', icon: <SolutionOutlined />, label: '技师管理' },
+  { key: '/finance', icon: <BarChartOutlined />, label: '财务统计' },
+  { key: '/commission', icon: <DollarOutlined />, label: '提成核算' },
+  { key: '/admin', icon: <UserOutlined />, label: '管理员账号' },
   {
     key: '/operation-logs',
     icon: <FileTextOutlined />,
@@ -53,6 +53,15 @@ export default function AdminLayout() {
 
   const adminInfo = useAuthStore((s) => s.adminInfo);
   const logout = useAuthStore((s) => s.logout);
+  const isSuperAdmin = adminInfo?.role === 'super_admin';
+
+  const visibleMenuItems = useMemo(
+    () =>
+      isSuperAdmin
+        ? menuItems
+        : menuItems.filter((item) => item && 'key' in item && item.key === '/appointments'),
+    [isSuperAdmin]
+  );
 
   const selectedKey = useMemo(() => {
     const path = location.pathname;
@@ -75,6 +84,10 @@ export default function AdminLayout() {
     logout();
     navigate('/login');
   };
+
+  if (!isSuperAdmin && location.pathname !== '/appointments') {
+    return <Navigate to="/appointments" replace />;
+  }
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
@@ -104,7 +117,7 @@ export default function AdminLayout() {
           theme="dark"
           mode="inline"
           selectedKeys={[selectedKey]}
-          items={menuItems}
+          items={visibleMenuItems}
           onClick={handleMenuClick}
         />
       </Sider>

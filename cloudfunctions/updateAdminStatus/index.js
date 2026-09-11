@@ -58,6 +58,7 @@ exports.main = async (event = {}) => {
         action: status === 'disabled' ? 'disable_admin' : 'enable_admin',
         targetType: 'admin',
         targetId: targetAdminId,
+        targetName: admin.username,
         detail: `${actionLabel}管理员 ${admin.username}`,
         ipAddress: event.ipAddress || '',
         createdAt: now,

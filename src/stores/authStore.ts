@@ -38,7 +38,7 @@ const resetInactivityTimer = () => {
   inactivityTimer = setTimeout(() => {
     const { clearAuth } = useAuthStore.getState();
     clearAuth();
-    window.location.href = '/login';
+    window.location.hash = '/login';
   }, INACTIVITY_TIMEOUT_MS);
 };
 

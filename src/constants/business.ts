@@ -35,10 +35,14 @@ export const POINTS_PER_UNIT = 10;
 // ============================================================
 // 提成规则
 // ============================================================
-/** 默认提成比例：30% */
-export const DEFAULT_COMMISSION_RATE = 30;
-/** 提成比例最小值：1% */
-export const MIN_COMMISSION_RATE = 1;
+/** 默认手工提成比例：20% */
+export const DEFAULT_COMMISSION_RATE = 20;
+/** 默认开卡提成比例：10% */
+export const DEFAULT_CARD_OPEN_COMMISSION_RATE = 10;
+/** 默认续卡提成比例：5% */
+export const DEFAULT_CARD_RENEW_COMMISSION_RATE = 5;
+/** 提成比例最小值：0% */
+export const MIN_COMMISSION_RATE = 0;
 /** 提成比例最大值：100% */
 export const MAX_COMMISSION_RATE = 100;
 
@@ -71,3 +75,16 @@ export const DORMANT_MEMBER_DAYS = 60;
 // ============================================================
 /** 搜索防抖延迟：300ms */
 export const SEARCH_DEBOUNCE_MS = 300;
+
+// ============================================================
+// 支付方式
+// ============================================================
+export const PAYMENT_TYPE_OPTIONS = [
+  { value: 'cash', label: '现金' },
+  { value: 'member_card', label: '会员卡' },
+  { value: 'meituan', label: '美团' },
+  { value: 'wechat', label: '微信' },
+  { value: 'alipay', label: '支付宝' },
+  { value: 'douyin', label: '抖音' },
+  { value: 'other', label: '其他' },
+] as const;

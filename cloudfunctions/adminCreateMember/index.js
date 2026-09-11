@@ -150,6 +150,7 @@ exports.main = async (event = {}) => {
         action: 'create_member',
         targetType: 'member',
         targetId: memberId,
+        targetName: nickName || wechatId || phone || '',
         detail: `创建会员 ${nickName || wechatId || phone || ''}`,
         createdAt: now,
       },

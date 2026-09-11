@@ -23,6 +23,10 @@ const ADMIN_ID_PREFIX = 'ADM';
 exports.main = async (event = {}) => {
   try {
     const adminInfo = verifyAuth(event);
+
+    if (adminInfo.role !== 'super_admin') {
+      return error(AdminErrorCode.FORBIDDEN, '权限不足，仅超级管理员可执行此操作');
+    }
     if (adminInfo.role !== ROLE_SUPER_ADMIN) {
       return error(AdminErrorCode.FORBIDDEN, '权限不足，仅超级管理员可执行此操作');
     }
@@ -72,6 +76,7 @@ exports.main = async (event = {}) => {
         action: 'create_admin',
         targetType: 'admin',
         targetId: adminId,
+        targetName: username,
         detail: `创建管理员 ${username}（角色：${role}）`,
         ipAddress: String(event.ipAddress || ''),
         createdAt: now,

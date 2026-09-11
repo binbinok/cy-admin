@@ -17,6 +17,10 @@ exports.main = async (event = {}) => {
   try {
     const adminInfo = verifyAuth(event);
 
+    if (adminInfo.role !== 'super_admin') {
+      return error(AdminErrorCode.FORBIDDEN, '权限不足，仅超级管理员可执行此操作');
+    }
+
     const memberId = String(event.memberId || '').trim();
     if (!memberId) {
       return error(AdminErrorCode.VALIDATION_ERROR, '会员 ID 不能为空');
@@ -65,6 +69,7 @@ exports.main = async (event = {}) => {
         action: 'birthday_notification',
         targetType: 'member',
         targetId: memberId,
+        targetName: member.nickName || '',
         detail: `向会员 ${member.nickName || memberId} 发送生日祝福`,
         ipAddress: event.ipAddress || '',
         createdAt: now,

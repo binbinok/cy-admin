@@ -13,7 +13,11 @@ const { AdminErrorCode } = require('./_shared/errors');
  */
 exports.main = async (event = {}) => {
   try {
-    verifyAuth(event);
+    const adminInfo = verifyAuth(event);
+
+    if (adminInfo.role !== 'super_admin') {
+      return error(AdminErrorCode.FORBIDDEN, '权限不足，仅超级管理员可执行此操作');
+    }
     return error(
       AdminErrorCode.VALIDATION_ERROR,
       '服务项目体系已升级为服务模板，请在模板管理中配置（adminCreateServiceTemplate）'

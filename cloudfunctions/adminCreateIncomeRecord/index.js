@@ -62,7 +62,7 @@ function validatePaymentDetails(paymentDetails) {
     return { valid: false, error: '支付方式最多3组' };
   }
 
-  const validPaymentTypes = ['member_card', 'cash', 'meituan', 'wechat', 'alipay'];
+  const validPaymentTypes = ['member_card', 'cash', 'meituan', 'wechat', 'alipay', 'douyin', 'other'];
   const usedTypes = new Set();
   let totalFee = 0;
 
@@ -106,6 +106,10 @@ function validatePaymentDetails(paymentDetails) {
 exports.main = async (event = {}) => {
   try {
     const adminInfo = verifyAuth(event);
+
+    if (adminInfo.role !== 'super_admin') {
+      return error(AdminErrorCode.FORBIDDEN, '权限不足，仅超级管理员可执行此操作');
+    }
     const serviceCategoryInput = String(event.serviceCategory || '').trim();
     const serviceName = String(event.serviceName || '').trim();
     const serviceTime = new Date(event.serviceTime);
@@ -221,6 +225,7 @@ exports.main = async (event = {}) => {
         action: 'create_income_record',
         targetType: 'consumption_record',
         targetId: addResult._id,
+        targetName: memberDoc ? memberDoc.nickName || memberDoc.name || '' : '',
         detail: `录入收入 ${amount} 分，服务 ${serviceName}，技师 ${technicianDoc.name || ''}`,
         createdAt: now,
       },

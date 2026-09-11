@@ -3,6 +3,7 @@ import { Card, DatePicker, Input, Select, Space, Table, Typography, message } fr
 import type { ColumnsType } from 'antd/es/table';
 import dayjs, { Dayjs } from 'dayjs';
 import { adminGetOperationLogs } from '@/services/operationLog';
+import operationLogLabels from '@/constants/operation-log';
 import type { OperationLog } from '@/types/common';
 import { formatDate } from '@/utils/format';
 
@@ -67,31 +68,24 @@ export default function OperationLogPage() {
       title: '操作类型',
       dataIndex: 'action',
       key: 'action',
-      width: 160,
+      width: 130,
+      render: (value: string) => operationLogLabels.formatAction(value),
     },
     {
       title: '操作对象',
       dataIndex: 'targetType',
       key: 'targetType',
-      width: 120,
-    },
-    {
-      title: '对象ID',
-      dataIndex: 'targetId',
-      key: 'targetId',
-      width: 140,
+      width: 130,
+      render: (value: string, record: OperationLog) =>
+        record.targetName
+          ? `${operationLogLabels.formatTargetType(value)}（${record.targetName}）`
+          : operationLogLabels.formatTargetType(value),
     },
     {
       title: '详情',
       dataIndex: 'detail',
       key: 'detail',
       ellipsis: true,
-    },
-    {
-      title: 'IP地址',
-      dataIndex: 'ipAddress',
-      key: 'ipAddress',
-      width: 140,
     },
   ];
 
@@ -118,13 +112,9 @@ export default function OperationLogPage() {
               setAction(value);
               setPage(1);
             }}
-            options={[
-              { label: '登录', value: 'login' },
-              { label: '登出', value: 'logout' },
-              { label: '修改会员', value: 'update_member' },
-              { label: '完成服务', value: 'complete_service' },
-              { label: '修改提成', value: 'update_commission_rate' },
-            ]}
+            options={Object.entries(operationLogLabels.action).map(
+              ([value, label]) => ({ label, value })
+            )}
           />
           <RangePicker
             value={dateRange}

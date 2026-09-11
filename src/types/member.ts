@@ -24,8 +24,21 @@ export interface MemberCard {
   balance: number; // 分
   totalRecharge: number; // 分
   status: 'active' | 'frozen' | 'cancelled';
+  levelHistory?: LevelHistoryEntry[];
   createdAt: Date;
   updatedAt: Date;
+}
+
+export interface LevelHistoryEntry {
+  fromLevelId: string;
+  fromLevelName: string;
+  toLevelId: string;
+  toLevelName: string;
+  trigger: 'recharge' | 'manual';
+  rechargeAmount?: number; // 分
+  reason?: string;
+  operatorAdminId: string;
+  createdAt: Date | string;
 }
 
 export interface CardRechargeRecord {
@@ -35,11 +48,19 @@ export interface CardRechargeRecord {
   amount: number; // 分
   balanceAfter: number; // 分
   operatorAdminId: string;
+  levelUpgrade?: { fromLevelId: string; toLevelId: string };
   createdAt: Date;
 }
 
 export interface PaymentDetail {
-  paymentType: 'member_card' | 'cash' | 'meituan' | 'wechat' | 'alipay';
+  paymentType:
+    | 'member_card'
+    | 'cash'
+    | 'meituan'
+    | 'wechat'
+    | 'alipay'
+    | 'douyin'
+    | 'other';
   amount: number; // 分
   createdAt?: Date;
 }
@@ -51,7 +72,7 @@ export interface ConsumptionRecord {
   serviceName?: string;
   serviceCategory?: string;
   technicianId?: string;
-  source?: 'appointment' | 'manual';
+  source?: 'appointment' | 'manual' | 'settlement' | 'import';
   note?: string;
   originalAmount?: number;
   discountAmount?: number;

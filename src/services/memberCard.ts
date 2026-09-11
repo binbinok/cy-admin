@@ -11,6 +11,7 @@ import {
   CF_GET_MEMBER_CARD_ASSOCIATION,
   CF_CREATE_MEMBER_CARD,
   CF_CANCEL_MEMBER_CARD,
+  CF_UPDATE_CARD_LEVEL,
 } from '@/constants/api';
 import type { ApiResponse, PageResult } from '@/types/common';
 import type { CardRechargeRecord, MemberCard } from '@/types/member';
@@ -80,11 +81,28 @@ export async function adminAssignDiscountLevel(
   return response.data;
 }
 
+export interface LevelUpgraded {
+  fromLevelId: string;
+  fromLevelName: string;
+  toLevelId: string;
+  toLevelName: string;
+}
+
 export async function adminRechargeCard(
-  params: { memberId: string; amount: number },
-): Promise<ApiResponse<{ card: MemberCard; rechargeRecord: CardRechargeRecord }>> {
-  const response = await http.post<ApiResponse<{ card: MemberCard; rechargeRecord: CardRechargeRecord }>>(
+  params: { memberId: string; amount: number; commissionTechnicianId: string },
+): Promise<ApiResponse<{ card: MemberCard; rechargeRecord: CardRechargeRecord; levelUpgraded?: LevelUpgraded }>> {
+  const response = await http.post<ApiResponse<{ card: MemberCard; rechargeRecord: CardRechargeRecord; levelUpgraded?: LevelUpgraded }>>(
     `/invoke/${CF_RECHARGE_CARD}`,
+    params,
+  );
+  return response.data;
+}
+
+export async function adminUpdateCardLevel(
+  params: { memberId: string; targetLevelId: string; reason: string },
+): Promise<ApiResponse<{ card: MemberCard }>> {
+  const response = await http.post<ApiResponse<{ card: MemberCard }>>(
+    `/invoke/${CF_UPDATE_CARD_LEVEL}`,
     params,
   );
   return response.data;
@@ -119,7 +137,7 @@ export async function adminCancelMemberCard(
   return response.data;
 }
 export async function adminCreateMemberCard(
-  params: { memberId: string; discountLevelId: string; amount: number },
+  params: { memberId: string; discountLevelId: string; amount: number; commissionTechnicianId: string },
 ): Promise<ApiResponse<MemberCard>> {
   const response = await http.post<ApiResponse<MemberCard>>(
     `/invoke/${CF_CREATE_MEMBER_CARD}`,
