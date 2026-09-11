@@ -219,20 +219,15 @@ describe('TechnicianListPage', () => {
 
     it('should return pending appointment count when technician has pending appointments', async () => {
       mockAdminUpdateTechnicianStatus.mockResolvedValue({
-        success: false,
-        data: { pendingAppointments: 3 },
-        error: {
-          code: 'TECHNICIAN_HAS_PENDING_APPOINTMENTS',
-          message: '该技师有 3 个未完成预约',
-        },
+        success: true,
+        data: { pendingCount: 3 },
       });
 
       const { adminUpdateTechnicianStatus } = await import('@/services/technician');
       const res = await adminUpdateTechnicianStatus('t1', 'rest');
 
-      expect(res.success).toBe(false);
-      expect(res.data?.pendingAppointments).toBe(3);
-      expect(res.error?.code).toBe('TECHNICIAN_HAS_PENDING_APPOINTMENTS');
+      expect(res.success).toBe(true);
+      expect(res.data?.pendingCount).toBe(3);
     });
 
     it('should succeed when technician has no pending appointments', async () => {

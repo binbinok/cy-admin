@@ -53,6 +53,7 @@ const STATUS_MAP: Record<string, { label: string; color: string }> = {
   idle: { label: '空闲', color: 'green' },
   busy: { label: '服务中', color: 'blue' },
   rest: { label: '休息', color: 'default' },
+  resigned: { label: '离职', color: 'red' },
 };
 
 interface TimeSlot {

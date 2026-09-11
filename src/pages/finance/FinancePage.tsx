@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Button,
   Card,
+  Checkbox,
   Col,
   DatePicker,
   Form,
@@ -67,6 +68,7 @@ export default function FinancePage() {
   const [serviceRevenue, setServiceRevenue] = useState<Array<{ category: string; amount: number }>>([]);
   const [consumptionList, setConsumptionList] = useState<ConsumptionRecord[]>([]);
   const [technicianPerformance, setTechnicianPerformance] = useState<TechnicianPerformance[]>([]);
+  const [showResigned, setShowResigned] = useState<boolean>(false);
   const [consumptionTotal, setConsumptionTotal] = useState<number>(0);
   const [consumptionPage, setConsumptionPage] = useState<number>(1);
   const pageSize = 10;
@@ -106,6 +108,22 @@ export default function FinancePage() {
       endDate: dateRange[1].format('YYYY-MM-DD'),
     };
   }, [dateRange]);
+
+  const resignedTechnicianIds = useMemo(
+    () =>
+      new Set(
+        technicianOptions.filter((t) => t.status === 'resigned').map((t) => t._id),
+      ),
+    [technicianOptions],
+  );
+
+  const visiblePerformance = useMemo(
+    () =>
+      showResigned
+        ? technicianPerformance
+        : technicianPerformance.filter((p) => !resignedTechnicianIds.has(p.technicianId)),
+    [showResigned, technicianPerformance, resignedTechnicianIds],
+  );
 
   const fetchSummary = useCallback(async (): Promise<void> => {
     const [todayRes, weekRes, monthRes] = await Promise.all([
@@ -355,13 +373,6 @@ export default function FinancePage() {
       render: (value: number) => `¥${formatAmount(value)}`,
     },
     {
-      title: '提成比例',
-      dataIndex: 'commissionRate',
-      key: 'commissionRate',
-      width: 100,
-      render: (value: number | undefined) => `${value ?? 30}%`,
-    },
-    {
       title: '应得提成',
       dataIndex: 'commissionAmount',
       key: 'commissionAmount',
@@ -569,12 +580,22 @@ export default function FinancePage() {
           }}
         />
       </Card>
-      <Card title="技师业绩统计">
+      <Card
+        title="技师业绩统计"
+        extra={
+          <Checkbox
+            checked={showResigned}
+            onChange={(e) => setShowResigned(e.target.checked)}
+          >
+            显示离职员工
+          </Checkbox>
+        }
+      >
         <Table<TechnicianPerformance>
           rowKey="technicianId"
           loading={performanceLoading}
           columns={performanceColumns}
-          dataSource={technicianPerformance}
+          dataSource={visiblePerformance}
           pagination={false}
         />
       </Card>

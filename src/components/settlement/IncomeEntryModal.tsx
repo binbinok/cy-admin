@@ -424,10 +424,12 @@ export default function IncomeEntryModal({
             >
               <Select
                 placeholder="请选择服务技师"
-                options={technicianOptions.map((item: Technician) => ({
-                  value: item._id,
-                  label: item.name,
-                }))}
+                options={technicianOptions
+                  .filter((item: Technician) => item.status !== 'resigned')
+                  .map((item: Technician) => ({
+                    value: item._id,
+                    label: item.name,
+                  }))}
               />
             </Form.Item>
           </Col>

@@ -31,6 +31,7 @@ const STATUS_MAP: Record<Technician['status'], { label: string; color: string }>
   idle: { label: '空闲', color: 'green' },
   busy: { label: '服务中', color: 'blue' },
   rest: { label: '休息', color: 'default' },
+  resigned: { label: '离职', color: 'red' },
 };
 
 const DAY_LABELS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
@@ -57,6 +58,7 @@ export default function TechnicianListPage() {
   const isSuperAdmin = useAuthStore((s) => s.adminInfo?.role === 'super_admin');
 
   const [page, setPage] = useState(1);
+  const [statusFilter, setStatusFilter] = useState<Technician['status'] | 'all'>('all');
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [createForm] = Form.useForm();
 
@@ -70,6 +72,10 @@ export default function TechnicianListPage() {
 
   const technicianList = data?.list ?? [];
   const total = data?.total ?? 0;
+  const filteredList =
+    statusFilter === 'all'
+      ? technicianList
+      : technicianList.filter((t) => t.status === statusFilter);
 
   // Create technician mutation
   const createMutation = useMutation({
@@ -83,23 +89,6 @@ export default function TechnicianListPage() {
         queryClient.invalidateQueries({ queryKey: ['technicianList'] });
       } else {
         message.error(res.error?.message ?? '创建失败，请重试');
-      }
-    },
-    onError: (error) => {
-      message.error(error instanceof Error ? error.message : '操作失败，请稍后再试');
-    },
-  });
-
-  // Update status mutation
-  const statusMutation = useMutation({
-    mutationFn: (params: { technicianId: string; status: string }) =>
-      adminUpdateTechnicianStatus(params.technicianId, params.status),
-    onSuccess: (res) => {
-      if (res.success) {
-        message.success('状态更新成功');
-        queryClient.invalidateQueries({ queryKey: ['technicianList'] });
-      } else {
-        message.error(res.error?.message ?? '操作失败，请重试');
       }
     },
     onError: (error) => {
@@ -137,57 +126,31 @@ export default function TechnicianListPage() {
     createForm.resetFields();
   }, [createForm]);
 
-  const handleSetRest = useCallback(
-    (record: Technician, pendingCount?: number) => {
-      if (pendingCount && pendingCount > 0) {
-        Modal.confirm({
-          title: '确认修改状态',
-          content: `该技师有 ${pendingCount} 个未完成预约，确定要将状态修改为休息吗？`,
-          okText: '确认',
-          cancelText: '取消',
-          onOk: () =>
-            statusMutation.mutateAsync({
-              technicianId: record._id,
-              status: 'rest',
-            }),
-        });
-      } else {
-        statusMutation.mutate({
-          technicianId: record._id,
-          status: 'rest',
-        });
-      }
-    },
-    [statusMutation],
-  );
-
-  const handleStatusChange = useCallback(
-    (record: Technician, newStatus: string) => {
-      if (newStatus === 'rest') {
-        // First check for pending appointments via the API
-        adminUpdateTechnicianStatus(record._id, 'rest').then((res) => {
-          if (res.success) {
-            message.success('状态更新成功');
-            queryClient.invalidateQueries({ queryKey: ['technicianList'] });
-          } else if (
-            res.error?.code === 'TECHNICIAN_HAS_PENDING_APPOINTMENTS' ||
-            res.data?.pendingAppointments
-          ) {
-            const count = res.data?.pendingAppointments ?? 0;
-            handleSetRest(record, count);
-          } else {
-            message.error(res.error?.message ?? '操作失败，请重试');
-          }
-        });
-        return;
-      }
-      statusMutation.mutate({
-        technicianId: record._id,
-        status: newStatus,
+  async function requestStatusChange(
+    record: Technician,
+    newStatus: string,
+    force = false,
+  ): Promise<void> {
+    const res = await adminUpdateTechnicianStatus(record._id, newStatus, force);
+    const pendingCount = res.data?.pendingCount ?? 0;
+    if (res.success && pendingCount === 0) {
+      message.success('状态更新成功');
+      queryClient.invalidateQueries({ queryKey: ['technicianList'] });
+      return;
+    }
+    if (res.success && pendingCount > 0) {
+      const label = newStatus === 'resigned' ? '离职' : '休息';
+      Modal.confirm({
+        title: '确认修改状态',
+        content: `该技师有 ${pendingCount} 个未完成预约，确定要将状态修改为${label}吗？`,
+        okText: '确认',
+        cancelText: '取消',
+        onOk: () => requestStatusChange(record, newStatus, true),
       });
-    },
-    [statusMutation, queryClient, handleSetRest],
-  );
+      return;
+    }
+    message.error(res.error?.message ?? '操作失败，请重试');
+  }
 
   const handleDelete = useCallback(
     (record: Technician) => {
@@ -253,13 +216,13 @@ export default function TechnicianListPage() {
       width: 200,
       render: (_: unknown, record: Technician) => (
         <Space size="small">
-          {record.status !== 'rest' && (
+          {record.status !== 'rest' && record.status !== 'resigned' && (
             <Button
               type="link"
               size="small"
               onClick={(e) => {
                 e.stopPropagation();
-                handleStatusChange(record, 'rest');
+                requestStatusChange(record, 'rest');
               }}
             >
               设为休息
@@ -271,10 +234,40 @@ export default function TechnicianListPage() {
               size="small"
               onClick={(e) => {
                 e.stopPropagation();
-                handleStatusChange(record, 'idle');
+                requestStatusChange(record, 'idle');
               }}
             >
               设为空闲
+            </Button>
+          )}
+          {record.status !== 'resigned' && (
+            <Button
+              type="link"
+              size="small"
+              onClick={(e) => {
+                e.stopPropagation();
+                Modal.confirm({
+                  title: '确认设为离职',
+                  content: `确定要将技师「${record.name}」设为离职吗？离职后不可再被预约。`,
+                  okText: '确认',
+                  cancelText: '取消',
+                  onOk: () => requestStatusChange(record, 'resigned'),
+                });
+              }}
+            >
+              设为离职
+            </Button>
+          )}
+          {record.status === 'resigned' && (
+            <Button
+              type="link"
+              size="small"
+              onClick={(e) => {
+                e.stopPropagation();
+                requestStatusChange(record, 'idle');
+              }}
+            >
+              恢复空闲
             </Button>
           )}
           <Button
@@ -311,20 +304,34 @@ export default function TechnicianListPage() {
         <Title level={4} style={{ margin: 0 }}>
           技师管理
         </Title>
-        {isSuperAdmin && (
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={() => setCreateModalOpen(true)}
-          >
-            新增技师
-          </Button>
-        )}
+        <Space>
+          <Select
+            value={statusFilter}
+            style={{ width: 120 }}
+            onChange={(value) => setStatusFilter(value)}
+            options={[
+              { value: 'all', label: '全部状态' },
+              { value: 'idle', label: '空闲' },
+              { value: 'busy', label: '服务中' },
+              { value: 'rest', label: '休息' },
+              { value: 'resigned', label: '离职' },
+            ]}
+          />
+          {isSuperAdmin && (
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={() => setCreateModalOpen(true)}
+            >
+              新增技师
+            </Button>
+          )}
+        </Space>
       </div>
 
       <Table<Technician>
         columns={displayColumns}
-        dataSource={technicianList}
+        dataSource={filteredList}
         rowKey="_id"
         loading={isLoading}
         onRow={(record) => ({

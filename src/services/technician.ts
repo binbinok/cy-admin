@@ -55,10 +55,11 @@ export async function adminUpdateTechnician(
 export async function adminUpdateTechnicianStatus(
   technicianId: string,
   status: string,
-): Promise<ApiResponse<{ pendingAppointments?: number }>> {
-  const response = await http.post<ApiResponse<{ pendingAppointments?: number }>>(
+  force = false,
+): Promise<ApiResponse<{ pendingCount?: number }>> {
+  const response = await http.post<ApiResponse<{ pendingCount?: number }>>(
     `/invoke/${CF_UPDATE_TECHNICIAN_STATUS}`,
-    { technicianId, status },
+    { technicianId, status, force },
   );
   return response.data;
 }

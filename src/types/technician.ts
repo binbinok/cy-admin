@@ -3,7 +3,7 @@ export interface Technician {
   name: string;
   avatarUrl?: string;
   specialties: string[];
-  status: 'idle' | 'busy' | 'rest';
+  status: 'idle' | 'busy' | 'rest' | 'resigned';
   schedule: Record<string, { startTime: string; endTime: string }[]>;
   createdAt: Date;
   updatedAt: Date;

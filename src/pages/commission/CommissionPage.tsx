@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Button, Card, DatePicker, Form, InputNumber, Table, Typography, message } from 'antd';
+import { Button, Card, Checkbox, DatePicker, Form, InputNumber, Table, Typography, message } from 'antd';
 import dayjs, { Dayjs } from 'dayjs';
 import type { ColumnsType } from 'antd/es/table';
 import {
@@ -9,6 +9,8 @@ import {
   type CommissionGlobalConfig,
   type CommissionReportItem,
 } from '@/services/commission';
+import { adminGetTechnicianList } from '@/services/technician';
+import type { Technician } from '@/types/technician';
 import { useAuthStore } from '@/stores/authStore';
 import {
   DEFAULT_COMMISSION_RATE,
@@ -56,6 +58,8 @@ const rateRules = [
 
 export default function CommissionPage() {
   const [reportData, setReportData] = useState<CommissionReportItem[]>([]);
+  const [technicians, setTechnicians] = useState<Technician[]>([]);
+  const [showResigned, setShowResigned] = useState<boolean>(false);
   const isSuperAdmin = useAuthStore((s) => s.adminInfo?.role === 'super_admin');
 
   const [loading, setLoading] = useState<boolean>(false);
@@ -76,14 +80,16 @@ export default function CommissionPage() {
   const fetchData = useCallback(async (): Promise<void> => {
     setLoading(true);
     try {
-      const [reportRes, configRes] = await Promise.all([
+      const [reportRes, configRes, technicianRes] = await Promise.all([
         adminGetCommissionReport(params),
         adminGetCommissionConfig(),
+        adminGetTechnicianList({ page: 1, pageSize: 100 }),
       ]);
       if (!reportRes.success || !configRes.success) {
         throw new Error(reportRes.error?.message ?? configRes.error?.message ?? '提成数据加载失败');
       }
       setReportData(toArray<CommissionReportItem>(reportRes.data));
+      setTechnicians(toArray<Technician>(technicianRes.data));
       configForm.setFieldsValue(configRes.data ?? DEFAULT_CONFIG);
     } catch (error) {
       message.error(error instanceof Error ? error.message : '提成数据加载失败');
@@ -114,6 +120,16 @@ export default function CommissionPage() {
       setSaving(false);
     }
   }, [configForm, fetchData]);
+
+  const visibleReportData = useMemo(() => {
+    if (showResigned) {
+      return reportData;
+    }
+    const resignedIds = new Set(
+      technicians.filter((t) => t.status === 'resigned').map((t) => t._id),
+    );
+    return reportData.filter((item) => !resignedIds.has(item.technicianId));
+  }, [reportData, technicians, showResigned]);
 
   const columns: ColumnsType<CommissionReportItem> = [
     {
@@ -216,11 +232,20 @@ export default function CommissionPage() {
           </Form>
         </Card>
       )}
-      <Card>
+      <Card
+        extra={
+          <Checkbox
+            checked={showResigned}
+            onChange={(e) => setShowResigned(e.target.checked)}
+          >
+            显示离职员工
+          </Checkbox>
+        }
+      >
         <Table<CommissionReportItem>
           rowKey="technicianId"
           columns={columns}
-          dataSource={reportData}
+          dataSource={visibleReportData}
           loading={loading}
           pagination={false}
         />

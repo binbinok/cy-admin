@@ -111,7 +111,9 @@ export default function AppointmentListPage() {
         if (!cancelled && res.success && res.data) {
           const data = res.data as PageResult<Technician>;
           setTechnicianOptions(
-            data.list.map((t) => ({ value: t._id, label: t.name })),
+            data.list
+              .filter((t) => t.status !== 'resigned')
+              .map((t) => ({ value: t._id, label: t.name })),
           );
         }
       })

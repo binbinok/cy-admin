@@ -73,7 +73,10 @@ export default function ScheduleBoard({
   });
 
   const technicians = useMemo<Technician[]>(
-    () => allTechnicians.filter((t) => !technicianId || t._id === technicianId),
+    () =>
+      allTechnicians.filter(
+        (t) => t.status !== 'resigned' && (!technicianId || t._id === technicianId),
+      ),
     [allTechnicians, technicianId],
   );
   const visibleAppointments = useMemo<Appointment[]>(

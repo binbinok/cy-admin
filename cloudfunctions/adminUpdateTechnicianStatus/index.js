@@ -7,10 +7,10 @@ const { db, _ } = require('./_shared/db');
 
 /**
  * 修改技师状态
- * - 修改为休息时检查未完成预约数量，返回 pendingCount 供前端确认
+ * - 修改为休息或离职时检查未完成预约数量，返回 pendingCount 供前端确认
  * - 前端确认后可带 force=true 强制执行
  *
- * @param {{ technicianId: string, status: 'idle'|'busy'|'rest', force?: boolean }} event
+ * @param {{ technicianId: string, status: 'idle'|'busy'|'rest'|'resigned', force?: boolean }} event
  */
 exports.main = async (event = {}) => {
   try {
@@ -26,13 +26,13 @@ exports.main = async (event = {}) => {
       return error(AdminErrorCode.VALIDATION_ERROR, '技师 ID 不能为空');
     }
 
-    const validStatuses = ['idle', 'busy', 'rest'];
+    const validStatuses = ['idle', 'busy', 'rest', 'resigned'];
     if (!validStatuses.includes(status)) {
       return error(AdminErrorCode.VALIDATION_ERROR, '无效的技师状态');
     }
 
-    // 修改为休息时，检查未完成预约数量
-    if (status === 'rest') {
+    // 修改为休息或离职时，检查未完成预约数量
+    if (status === 'rest' || status === 'resigned') {
       const countRes = await db
         .collection('appointments')
         .where({

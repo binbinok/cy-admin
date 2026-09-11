@@ -96,7 +96,7 @@ describe('technician service', () => {
   describe('adminUpdateTechnicianStatus', () => {
     it('should POST to /invoke/adminUpdateTechnicianStatus with technicianId and status', async () => {
       mockPost.mockResolvedValue({
-        data: { success: true, data: { pendingAppointments: 3 } },
+        data: { success: true, data: { pendingCount: 3 } },
       });
 
       const result = await adminUpdateTechnicianStatus('t1', 'rest');
@@ -104,9 +104,10 @@ describe('technician service', () => {
       expect(mockPost).toHaveBeenCalledWith('/invoke/adminUpdateTechnicianStatus', {
         technicianId: 't1',
         status: 'rest',
+        force: false,
       });
       expect(result.success).toBe(true);
-      expect(result.data?.pendingAppointments).toBe(3);
+      expect(result.data?.pendingCount).toBe(3);
     });
 
     it('should handle status change without pending appointments', async () => {
@@ -119,6 +120,22 @@ describe('technician service', () => {
       expect(mockPost).toHaveBeenCalledWith('/invoke/adminUpdateTechnicianStatus', {
         technicianId: 't1',
         status: 'idle',
+        force: false,
+      });
+      expect(result.success).toBe(true);
+    });
+
+    it('should pass force=true when confirmed with pending appointments', async () => {
+      mockPost.mockResolvedValue({
+        data: { success: true, data: {} },
+      });
+
+      const result = await adminUpdateTechnicianStatus('t1', 'resigned', true);
+
+      expect(mockPost).toHaveBeenCalledWith('/invoke/adminUpdateTechnicianStatus', {
+        technicianId: 't1',
+        status: 'resigned',
+        force: true,
       });
       expect(result.success).toBe(true);
     });
