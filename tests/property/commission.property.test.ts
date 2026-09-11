@@ -67,7 +67,7 @@ describe('cy-admin 提成计算属性测试', () => {
     );
   });
 
-  it('Property 15: 默认提成比例为 30%', () => {
+  it('Property 15: 默认提成比例为 20%', () => {
     fc.assert(
       fc.property(
         fc.nat({ max: 10_000_000 }),
@@ -85,7 +85,7 @@ describe('cy-admin 提成计算属性测试', () => {
 // Feature: cy-admin, Property 16: 提成比例验证正确性
 // **Validates: Requirements 7.3, 7.4**
 describe('cy-admin 提成比例验证属性测试', () => {
-  it('Property 16: 1–100 范围内的整数应被接受', () => {
+  it('Property 16: 0–100 范围内的整数应被接受', () => {
     fc.assert(
       fc.property(
         fc.integer({ min: MIN_COMMISSION_RATE, max: MAX_COMMISSION_RATE }),
@@ -98,10 +98,10 @@ describe('cy-admin 提成比例验证属性测试', () => {
     );
   });
 
-  it('Property 16: 小于 1 的整数应被拒绝', () => {
+  it('Property 16: 小于 0 的整数应被拒绝', () => {
     fc.assert(
       fc.property(
-        fc.integer({ min: -1_000_000, max: 0 }),
+        fc.integer({ min: -1_000_000, max: -1 }),
         (rate) => {
           const result = validateCommissionRate(rate);
           return result.valid === false && result.errors.length > 0;

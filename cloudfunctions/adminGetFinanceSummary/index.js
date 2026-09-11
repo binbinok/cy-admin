@@ -49,7 +49,7 @@ function getDateRange(period) {
 async function getRecordsByRange(range) {
   const { data: list } = await db.collection('consumption_records')
     .where({
-      createdAt: _.gte(range.start).and(_.lt(range.end)),
+      serviceTime: _.gte(range.start).and(_.lt(range.end)),
     })
     .get();
   return list;
@@ -57,7 +57,11 @@ async function getRecordsByRange(range) {
 
 exports.main = async (event = {}) => {
   try {
-    verifyAuth(event);
+    const adminInfo = verifyAuth(event);
+
+    if (adminInfo.role !== 'super_admin') {
+      return error(AdminErrorCode.FORBIDDEN, '权限不足，仅超级管理员可执行此操作');
+    }
 
     const period = event.period || 'today';
     if (!['today', 'week', 'month'].includes(period)) {

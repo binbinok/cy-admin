@@ -4,6 +4,19 @@ const { verifyAuth } = require('./_shared/auth');
 const { success, error } = require('./_shared/response');
 const { AdminErrorCode } = require('./_shared/errors');
 const { db, _ } = require('./_shared/db');
+const { getGlobalCommissionConfig } = require('./_shared/commissionConfig');
+
+const VALID_TYPES = ['manual', 'card_open', 'card_renew'];
+
+function resolveRate(type, config) {
+  if (type === 'card_open') {
+    return config.cardOpenRate;
+  }
+  if (type === 'card_renew') {
+    return config.cardRenewRate;
+  }
+  return config.manualRate;
+}
 
 /**
  * 解析月份范围
@@ -78,11 +91,11 @@ exports.main = async (event = {}) => {
     // 解析月份范围
     const { start, end } = parseMonthRange(month);
 
-    // 查询该技师在月份范围内的消费记录
+    // 查询该技师在月份范围内的消费记录（按服务时间归属月份）
     const { data: records } = await db.collection('consumption_records')
       .where({
         technicianId,
-        createdAt: _.gte(start).and(_.lt(end)),
+        serviceTime: _.gte(start).and(_.lt(end)),
       })
       .get();
 
@@ -90,9 +103,18 @@ exports.main = async (event = {}) => {
     const orderCount = records.length;
     const totalAmount = records.reduce((sum, item) => sum + (item.amount || 0), 0);
 
-    // 获取技师提成比例（默认30%）
-    const commissionRate = Number(technicianDoc.commissionRate) || 30;
-    const commissionAmount = Math.floor(totalAmount * commissionRate / 100);
+    // 应得提成：按当前全局比例对当月提成记录基数实时重算
+    const config = await getGlobalCommissionConfig();
+    const { data: commissionRecords } = await db.collection('commission_records')
+      .where({
+        technicianId,
+        createdAt: _.gte(start).and(_.lt(end)),
+      })
+      .get();
+    const commissionAmount = commissionRecords.reduce((sum, record) => {
+      const type = VALID_TYPES.includes(record.type) ? record.type : 'manual';
+      return sum + Math.floor(((record.serviceAmount || 0) * resolveRate(type, config)) / 100);
+    }, 0);
 
     // 生成 CSV
     const csvRecords = [{

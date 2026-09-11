@@ -16,7 +16,11 @@ const { db, _ } = require('./_shared/db');
  */
 exports.main = async (event = {}) => {
   try {
-    verifyAuth(event);
+    const adminInfo = verifyAuth(event);
+
+    if (adminInfo.role !== 'super_admin') {
+      return error(AdminErrorCode.FORBIDDEN, '权限不足，仅超级管理员可执行此操作');
+    }
 
     const { startDate, endDate } = event;
     if (!startDate || !endDate) {
@@ -27,10 +31,10 @@ exports.main = async (event = {}) => {
     const end = new Date(endDate);
     const endExclusive = new Date(end.getTime() + 24 * 60 * 60 * 1000);
 
-    // 查询时间范围内消费记录
+    // 查询时间范围内消费记录（按服务时间归属）
     const { data: records } = await db.collection('consumption_records')
       .where({
-        createdAt: _.gte(start).and(_.lt(endExclusive)),
+        serviceTime: _.gte(start).and(_.lt(endExclusive)),
       })
       .get();
 

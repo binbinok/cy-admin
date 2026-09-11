@@ -57,6 +57,7 @@ export interface CreateSettlementPayload {
   adjustAmount?: number; // 分，可正可负
   adjustReason?: string;
   paymentDetails: Array<{ paymentType: string; amount: number }>;
+  sessionCardId?: string; // 次卡核销，固定核销 1 次
   note?: string;
 }
 export interface SettlementResult {
@@ -68,4 +69,17 @@ export interface SettlementResult {
   amount: number;
   pointsEarned: number;
   commissionAmount: number;
+  sessionCardRedemptionId?: string;
+  sessionCoveredAmount?: number; // 分
+  sessionRecognizedAmount?: number; // 分
+}
+
+export interface IncomePrefillData {
+  appointmentId?: string;
+  categoryId?: string;
+  technicianId?: string;
+  memberId?: string;
+  guestName?: string;
+  serviceTime?: string;
+  note?: string;
 }

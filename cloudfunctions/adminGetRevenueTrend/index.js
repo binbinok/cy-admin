@@ -37,7 +37,11 @@ function parseDateRange(event) {
 
 exports.main = async (event = {}) => {
   try {
-    verifyAuth(event);
+    const adminInfo = verifyAuth(event);
+
+    if (adminInfo.role !== 'super_admin') {
+      return error(AdminErrorCode.FORBIDDEN, '权限不足，仅超级管理员可执行此操作');
+    }
 
     const { startDate, endDate } = event;
     if (!startDate || !endDate) {
@@ -48,13 +52,13 @@ exports.main = async (event = {}) => {
 
     const { data: list } = await db.collection('consumption_records')
       .where({
-        createdAt: _.gte(start).and(_.lt(endExclusive)),
+        serviceTime: _.gte(start).and(_.lt(endExclusive)),
       })
       .get();
 
     const map = new Map();
     for (const item of list) {
-      const key = toDateKey(item.createdAt);
+      const key = toDateKey(item.serviceTime);
       map.set(key, (map.get(key) || 0) + (item.amount || 0));
     }
 

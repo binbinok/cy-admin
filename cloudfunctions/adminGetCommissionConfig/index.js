@@ -3,39 +3,26 @@
 const { verifyAuth } = require('./_shared/auth');
 const { success, error } = require('./_shared/response');
 const { AdminErrorCode } = require('./_shared/errors');
-const { db } = require('./_shared/db');
-
-const DEFAULT_COMMISSION_RATE = 30;
+const { getGlobalCommissionConfig } = require('./_shared/commissionConfig');
 
 /**
- * 获取所有技师提成配置
+ * 获取全局提成配置（手工 / 开卡 / 续卡三类比例，全员生效）
  *
  * 入参：{}
  *
- * 返回：[{ technicianId, technicianName, commissionRate }]
- *   - 未配置自定义比例的技师默认 30%
- *
- * 需求：7.2、7.3
+ * 返回：{ manualRate, cardOpenRate, cardRenewRate }
+ *   - 无配置时返回默认值 20 / 10 / 5
  */
 exports.main = async (event = {}) => {
   try {
-    verifyAuth(event);
+    const adminInfo = verifyAuth(event);
 
-    // 查询所有技师
-    const { data: technicians } = await db.collection('technicians').get();
+    if (adminInfo.role !== 'super_admin') {
+      return error(AdminErrorCode.FORBIDDEN, '权限不足，仅超级管理员可执行此操作');
+    }
 
-    // 查询所有提成配置
-    const { data: configs } = await db.collection('technician_commission_config').get();
-    const configMap = new Map(configs.map((c) => [c.technicianId, c.commissionRate]));
-
-    // 左连接：每位技师关联其提成配置，无配置则默认 30
-    const result = technicians.map((t) => ({
-      technicianId: t._id,
-      technicianName: t.name,
-      commissionRate: configMap.get(t._id) ?? DEFAULT_COMMISSION_RATE,
-    }));
-
-    return success(result);
+    const config = await getGlobalCommissionConfig();
+    return success(config);
   } catch (err) {
     if (err.code) {
       return error(err.code, err.message);

@@ -1,19 +1,32 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Button, Card, DatePicker, Form, InputNumber, Modal, Table, Typography, message } from 'antd';
+import { Button, Card, DatePicker, Form, InputNumber, Table, Typography, message } from 'antd';
 import dayjs, { Dayjs } from 'dayjs';
 import type { ColumnsType } from 'antd/es/table';
 import {
   adminGetCommissionConfig,
   adminGetCommissionReport,
   adminUpdateCommissionRate,
-  type CommissionConfigItem,
+  type CommissionGlobalConfig,
   type CommissionReportItem,
 } from '@/services/commission';
 import { useAuthStore } from '@/stores/authStore';
+import {
+  DEFAULT_COMMISSION_RATE,
+  DEFAULT_CARD_OPEN_COMMISSION_RATE,
+  DEFAULT_CARD_RENEW_COMMISSION_RATE,
+  MIN_COMMISSION_RATE,
+  MAX_COMMISSION_RATE,
+} from '@/constants/business';
 import { formatAmount } from '@/utils/format';
 
 const { Title } = Typography;
 const { RangePicker } = DatePicker;
+
+const DEFAULT_CONFIG: CommissionGlobalConfig = {
+  manualRate: DEFAULT_COMMISSION_RATE,
+  cardOpenRate: DEFAULT_CARD_OPEN_COMMISSION_RATE,
+  cardRenewRate: DEFAULT_CARD_RENEW_COMMISSION_RATE,
+};
 
 // eslint-disable-next-line react-refresh/only-export-components
 export function toArray<T>(data: unknown): T[] {
@@ -24,20 +37,34 @@ export function toArray<T>(data: unknown): T[] {
   return [];
 }
 
+const rateRules = [
+  { required: true, message: '请输入提成比例' },
+  {
+    validator: (_: unknown, value: number) => {
+      if (typeof value !== 'number' || !Number.isInteger(value)) {
+        return Promise.reject(new Error('提成比例必须为整数'));
+      }
+      if (value < MIN_COMMISSION_RATE || value > MAX_COMMISSION_RATE) {
+        return Promise.reject(
+          new Error(`提成比例需在 ${MIN_COMMISSION_RATE}% 到 ${MAX_COMMISSION_RATE}% 之间`),
+        );
+      }
+      return Promise.resolve();
+    },
+  },
+];
+
 export default function CommissionPage() {
   const [reportData, setReportData] = useState<CommissionReportItem[]>([]);
   const isSuperAdmin = useAuthStore((s) => s.adminInfo?.role === 'super_admin');
 
-  const [configData, setConfigData] = useState<CommissionConfigItem[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
-  const [modalOpen, setModalOpen] = useState<boolean>(false);
-  const [submitting, setSubmitting] = useState<boolean>(false);
-  const [selectedConfig, setSelectedConfig] = useState<CommissionConfigItem | null>(null);
+  const [saving, setSaving] = useState<boolean>(false);
   const [dateRange, setDateRange] = useState<[Dayjs, Dayjs]>([
     dayjs().subtract(29, 'day'),
     dayjs(),
   ]);
-  const [form] = Form.useForm<{ commissionRate: number }>();
+  const [configForm] = Form.useForm<CommissionGlobalConfig>();
 
   const params = useMemo(() => {
     return {
@@ -57,59 +84,36 @@ export default function CommissionPage() {
         throw new Error(reportRes.error?.message ?? configRes.error?.message ?? '提成数据加载失败');
       }
       setReportData(toArray<CommissionReportItem>(reportRes.data));
-      setConfigData(toArray<CommissionConfigItem>(configRes.data));
+      configForm.setFieldsValue(configRes.data ?? DEFAULT_CONFIG);
     } catch (error) {
       message.error(error instanceof Error ? error.message : '提成数据加载失败');
     } finally {
       setLoading(false);
     }
-  }, [params]);
+  }, [params, configForm]);
 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
 
-  const openRateModal = useCallback((configItem: CommissionConfigItem): void => {
-    setSelectedConfig(configItem);
-    form.setFieldsValue({ commissionRate: configItem.commissionRate });
-    setModalOpen(true);
-  }, [form]);
-
-  const closeRateModal = useCallback((): void => {
-    setModalOpen(false);
-    setSelectedConfig(null);
-    form.resetFields();
-  }, [form]);
-
-  const handleSaveRate = useCallback(async (): Promise<void> => {
-    if (!selectedConfig) {
-      return;
-    }
+  const handleSaveConfig = useCallback(async (): Promise<void> => {
     try {
-      const values = await form.validateFields();
-      setSubmitting(true);
-      const res = await adminUpdateCommissionRate({
-        technicianId: selectedConfig.technicianId,
-        commissionRate: values.commissionRate,
-      });
+      const values = await configForm.validateFields();
+      setSaving(true);
+      const res = await adminUpdateCommissionRate(values);
       if (!res.success) {
-        throw new Error(res.error?.message ?? '提成比例更新失败');
+        throw new Error(res.error?.message ?? '提成比例保存失败');
       }
-      message.success('提成比例更新成功');
-      closeRateModal();
+      message.success('提成比例保存成功');
       fetchData();
     } catch (error) {
       if (error instanceof Error) {
         message.error(error.message);
       }
     } finally {
-      setSubmitting(false);
+      setSaving(false);
     }
-  }, [closeRateModal, fetchData, form, selectedConfig]);
-
-  const configMap = useMemo(() => {
-    return new Map<string, number>(configData.map((item: CommissionConfigItem) => [item.technicianId, item.commissionRate]));
-  }, [configData]);
+  }, [configForm, fetchData]);
 
   const columns: ColumnsType<CommissionReportItem> = [
     {
@@ -132,36 +136,32 @@ export default function CommissionPage() {
       render: (value: number) => `¥${formatAmount(value)}`,
     },
     {
-      title: '提成比例',
-      key: 'commissionRate',
-      width: 100,
-      render: (_: unknown, record: CommissionReportItem) => `${configMap.get(record.technicianId) ?? 30}%`,
-    },
-    {
-      title: '应得提成',
-      dataIndex: 'commissionAmount',
-      key: 'commissionAmount',
-      width: 130,
+      title: '手工提成',
+      dataIndex: 'manualAmount',
+      key: 'manualAmount',
+      width: 120,
       render: (value: number) => `¥${formatAmount(value)}`,
     },
     {
-      title: '操作',
-      key: 'action',
+      title: '开卡提成',
+      dataIndex: 'cardOpenAmount',
+      key: 'cardOpenAmount',
       width: 120,
-      render: (_: unknown, record: CommissionReportItem) => {
-        const configItem = configData.find(
-          (item: CommissionConfigItem) => item.technicianId === record.technicianId,
-        ) ?? {
-          technicianId: record.technicianId,
-          technicianName: record.technicianName,
-          commissionRate: 30,
-        };
-        return isSuperAdmin ? (
-          <Button type="link" size="small" onClick={() => openRateModal(configItem)}>
-            调整比例
-          </Button>
-        ) : null;
-      },
+      render: (value: number) => `¥${formatAmount(value)}`,
+    },
+    {
+      title: '续卡提成',
+      dataIndex: 'cardRenewAmount',
+      key: 'cardRenewAmount',
+      width: 120,
+      render: (value: number) => `¥${formatAmount(value)}`,
+    },
+    {
+      title: '提成合计',
+      dataIndex: 'totalCommission',
+      key: 'totalCommission',
+      width: 130,
+      render: (value: number) => `¥${formatAmount(value)}`,
     },
   ];
 
@@ -181,6 +181,41 @@ export default function CommissionPage() {
           }}
         />
       </div>
+      {isSuperAdmin && (
+        <Card title="提成比例配置（全员生效）" style={{ marginBottom: 16 }}>
+          <Form form={configForm} layout="inline" initialValues={DEFAULT_CONFIG}>
+            <Form.Item label="手工提成" name="manualRate" rules={rateRules}>
+              <InputNumber
+                min={MIN_COMMISSION_RATE}
+                max={MAX_COMMISSION_RATE}
+                precision={0}
+                addonAfter="%"
+              />
+            </Form.Item>
+            <Form.Item label="开卡提成" name="cardOpenRate" rules={rateRules}>
+              <InputNumber
+                min={MIN_COMMISSION_RATE}
+                max={MAX_COMMISSION_RATE}
+                precision={0}
+                addonAfter="%"
+              />
+            </Form.Item>
+            <Form.Item label="续卡提成" name="cardRenewRate" rules={rateRules}>
+              <InputNumber
+                min={MIN_COMMISSION_RATE}
+                max={MAX_COMMISSION_RATE}
+                precision={0}
+                addonAfter="%"
+              />
+            </Form.Item>
+            <Form.Item>
+              <Button type="primary" onClick={handleSaveConfig} loading={saving}>
+                保存
+              </Button>
+            </Form.Item>
+          </Form>
+        </Card>
+      )}
       <Card>
         <Table<CommissionReportItem>
           rowKey="technicianId"
@@ -190,38 +225,6 @@ export default function CommissionPage() {
           pagination={false}
         />
       </Card>
-      <Modal
-        title={`设置提成比例${selectedConfig ? ` - ${selectedConfig.technicianName}` : ''}`}
-        open={modalOpen}
-        onCancel={closeRateModal}
-        onOk={handleSaveRate}
-        confirmLoading={submitting}
-        okText="保存"
-        cancelText="取消"
-      >
-        <Form form={form} layout="vertical">
-          <Form.Item
-            label="提成比例（1-100）"
-            name="commissionRate"
-            rules={[
-              { required: true, message: '请输入提成比例' },
-              {
-                validator: (_: unknown, value: number) => {
-                  if (typeof value !== 'number' || !Number.isInteger(value)) {
-                    return Promise.reject(new Error('提成比例必须为整数'));
-                  }
-                  if (value < 1 || value > 100) {
-                    return Promise.reject(new Error('提成比例需在 1% 到 100% 之间'));
-                  }
-                  return Promise.resolve();
-                },
-              },
-            ]}
-          >
-            <InputNumber min={1} max={100} precision={0} style={{ width: '100%' }} addonAfter="%" />
-          </Form.Item>
-        </Form>
-      </Modal>
     </div>
   );
 }

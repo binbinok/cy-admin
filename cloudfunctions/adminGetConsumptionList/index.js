@@ -16,7 +16,11 @@ const { db, _ } = require('./_shared/db');
  */
 exports.main = async (event = {}) => {
   try {
-    verifyAuth(event);
+    const adminInfo = verifyAuth(event);
+
+    if (adminInfo.role !== 'super_admin') {
+      return error(AdminErrorCode.FORBIDDEN, '权限不足，仅超级管理员可执行此操作');
+    }
 
     const page = Math.max(Number(event.page) || 1, 1);
     const pageSize = Math.min(Math.max(Number(event.pageSize) || 20, 1), 100);
@@ -29,7 +33,7 @@ exports.main = async (event = {}) => {
       const end = new Date(event.endDate);
       const endExclusive = new Date(end.getTime() + 24 * 60 * 60 * 1000);
       conditions.push({
-        createdAt: _.gte(start).and(_.lt(endExclusive)),
+        serviceTime: _.gte(start).and(_.lt(endExclusive)),
       });
     }
 
@@ -59,7 +63,7 @@ exports.main = async (event = {}) => {
     // 分页查询
     const skip = (page - 1) * pageSize;
     const { data: list } = await query
-      .orderBy('createdAt', 'desc')
+      .orderBy('serviceTime', 'desc')
       .skip(skip)
       .limit(pageSize)
       .get();

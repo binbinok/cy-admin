@@ -11,13 +11,16 @@ export interface CommissionReportItem {
   technicianName: string;
   completedCount: number;
   totalAmount: number;
-  commissionAmount: number;
+  manualAmount: number;
+  cardOpenAmount: number;
+  cardRenewAmount: number;
+  totalCommission: number;
 }
 
-export interface CommissionConfigItem {
-  technicianId: string;
-  technicianName: string;
-  commissionRate: number;
+export interface CommissionGlobalConfig {
+  manualRate: number;
+  cardOpenRate: number;
+  cardRenewRate: number;
 }
 
 export async function adminGetCommissionReport(
@@ -30,8 +33,8 @@ export async function adminGetCommissionReport(
   return response.data;
 }
 
-export async function adminGetCommissionConfig(): Promise<ApiResponse<CommissionConfigItem[]>> {
-  const response = await http.post<ApiResponse<CommissionConfigItem[]>>(
+export async function adminGetCommissionConfig(): Promise<ApiResponse<CommissionGlobalConfig>> {
+  const response = await http.post<ApiResponse<CommissionGlobalConfig>>(
     `/invoke/${CF_GET_COMMISSION_CONFIG}`,
     {},
   );
@@ -39,11 +42,11 @@ export async function adminGetCommissionConfig(): Promise<ApiResponse<Commission
 }
 
 export async function adminUpdateCommissionRate(
-  params: { technicianId: string; commissionRate: number },
+  params: CommissionGlobalConfig,
 ): Promise<ApiResponse<void>> {
   const response = await http.post<ApiResponse<void>>(
     `/invoke/${CF_UPDATE_COMMISSION_RATE}`,
-    params,
+    { ...params },
   );
   return response.data;
 }

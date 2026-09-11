@@ -18,7 +18,11 @@ const { db, _ } = require('./_shared/db');
  */
 exports.main = async (event = {}) => {
   try {
-    verifyAuth(event);
+    const adminInfo = verifyAuth(event);
+
+    if (adminInfo.role !== 'super_admin') {
+      return error(AdminErrorCode.FORBIDDEN, '权限不足，仅超级管理员可执行此操作');
+    }
 
     const technicianId = String(event.technicianId || '').trim();
     const page = Math.max(Number(event.page) || 1, 1);
@@ -45,10 +49,10 @@ exports.main = async (event = {}) => {
       endDate = new Date(year, month + 1, 1);
     }
 
-    // 构建查询条件
+    // 构建查询条件（按服务时间归属）
     const conditions = [
       { technicianId },
-      { createdAt: _.gte(startDate).and(_.lt(endDate)) },
+      { serviceTime: _.gte(startDate).and(_.lt(endDate)) },
     ];
 
     const query = db.collection('consumption_records').where(_.and(conditions));
@@ -60,7 +64,7 @@ exports.main = async (event = {}) => {
     // 分页查询
     const skip = (page - 1) * pageSize;
     const { data: list } = await query
-      .orderBy('createdAt', 'desc')
+      .orderBy('serviceTime', 'desc')
       .skip(skip)
       .limit(pageSize)
       .get();

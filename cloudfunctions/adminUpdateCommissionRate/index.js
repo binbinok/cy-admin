@@ -4,19 +4,26 @@ const { verifyAuth } = require('./_shared/auth');
 const { success, error } = require('./_shared/response');
 const { AdminErrorCode } = require('./_shared/errors');
 const { db } = require('./_shared/db');
+const { ensureCommissionConfigCollection } = require('./_shared/commissionConfig');
+
+const RATE_FIELDS = ['manualRate', 'cardOpenRate', 'cardRenewRate'];
+const RATE_LABELS = {
+  manualRate: '手工提成',
+  cardOpenRate: '开卡提成',
+  cardRenewRate: '续卡提成',
+};
+
+function isValidRate(value) {
+  return Number.isInteger(value) && value >= 0 && value <= 100;
+}
 
 /**
- * 设置技师提成比例
+ * 设置全局提成比例（手工 / 开卡 / 续卡三类，全员生效）
  *
- * 入参：{ technicianId, commissionRate }
- *   - commissionRate 必须为 1–100 的整数
+ * 入参：{ manualRate, cardOpenRate, cardRenewRate }
+ *   - 三项均为 0–100 的整数
  *
- * 行为：
- *   1. 验证 commissionRate 范围
- *   2. upsert technician_commission_config
- *   3. 记录操作日志
- *
- * 需求：7.3、7.4、11.5
+ * 行为：upsert commission_config 单文档全局配置，并记录操作日志
  */
 exports.main = async (event = {}) => {
   try {
@@ -25,65 +32,47 @@ exports.main = async (event = {}) => {
       return error(AdminErrorCode.FORBIDDEN, '权限不足，仅超级管理员可执行此操作');
     }
 
-    const { technicianId, commissionRate } = event;
-
-    // 验证提成比例：必须为 1–100 的整数
-    if (
-      commissionRate === undefined ||
-      commissionRate === null ||
-      !Number.isInteger(commissionRate) ||
-      commissionRate < 1 ||
-      commissionRate > 100
-    ) {
-      return error(
-        AdminErrorCode.INVALID_COMMISSION_RATE,
-        '提成比例必须为 1%–100% 的整数'
-      );
-    }
-
-    if (!technicianId) {
-      return error(AdminErrorCode.VALIDATION_ERROR, 'technicianId 不能为空');
+    for (const field of RATE_FIELDS) {
+      if (!isValidRate(event[field])) {
+        return error(
+          AdminErrorCode.INVALID_COMMISSION_RATE,
+          `${RATE_LABELS[field]}比例必须为 0%–100% 的整数`
+        );
+      }
     }
 
     const now = new Date();
+    const configData = {
+      manualRate: event.manualRate,
+      cardOpenRate: event.cardOpenRate,
+      cardRenewRate: event.cardRenewRate,
+      updatedBy: adminInfo.adminId,
+      updatedAt: now,
+    };
 
-    // 检查是否已有配置记录
-    const { data: existing } = await db.collection('technician_commission_config')
-      .where({ technicianId })
-      .get();
-
+    await ensureCommissionConfigCollection();
+    let existing = [];
+    try {
+      const res = await db.collection('commission_config').limit(1).get();
+      existing = res.data || [];
+    } catch (_e) {
+      existing = [];
+    }
     if (existing.length > 0) {
-      // 更新已有配置
-      await db.collection('technician_commission_config')
-        .where({ technicianId })
-        .update({
-          data: {
-            commissionRate,
-            updatedBy: adminInfo.adminId,
-            updatedAt: now,
-          },
-        });
+      await db.collection('commission_config').doc(existing[0]._id).update({ data: configData });
     } else {
-      // 新增配置
-      await db.collection('technician_commission_config').add({
-        data: {
-          technicianId,
-          commissionRate,
-          updatedBy: adminInfo.adminId,
-          updatedAt: now,
-        },
-      });
+      await db.collection('commission_config').add({ data: { ...configData, createdAt: now } });
     }
 
-    // 记录操作日志
     await db.collection('operation_logs').add({
       data: {
         adminId: adminInfo.adminId,
         adminName: adminInfo.username || '',
         action: 'update_commission_rate',
-        targetType: 'technician_commission_config',
-        targetId: technicianId,
-        detail: `设置技师提成比例为 ${commissionRate}%`,
+        targetType: 'commission_config',
+        targetId: 'global',
+        targetName: '全局提成配置',
+        detail: `设置全局提成比例：手工 ${configData.manualRate}%，开卡 ${configData.cardOpenRate}%，续卡 ${configData.cardRenewRate}%`,
         createdAt: now,
       },
     });

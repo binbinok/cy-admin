@@ -2,9 +2,9 @@ import { describe, it, expect } from 'vitest';
 import { calculateCommission } from '../../src/utils/commission';
 
 describe('calculateCommission', () => {
-  it('should use default rate of 30% when rate is not provided', () => {
-    // 10000 fen * 30 / 100 = 3000 fen
-    expect(calculateCommission(10000)).toBe(3000);
+  it('should use default rate of 20% when rate is not provided', () => {
+    // 10000 fen * 20 / 100 = 2000 fen
+    expect(calculateCommission(10000)).toBe(2000);
   });
 
   it('should calculate correctly with a custom rate', () => {
@@ -37,9 +37,9 @@ describe('calculateCommission', () => {
   });
 
   it('should calculate correctly for typical service amounts', () => {
-    // 5000 fen (50 yuan) at 30% → 1500 fen
-    expect(calculateCommission(5000)).toBe(1500);
-    // 19900 fen (199 yuan) at 30% → 5970 fen
-    expect(calculateCommission(19900)).toBe(5970);
+    // 5000 fen (50 yuan) at 20% → 1000 fen
+    expect(calculateCommission(5000)).toBe(1000);
+    // 19900 fen (199 yuan) at 20% → 3980 fen
+    expect(calculateCommission(19900)).toBe(3980);
   });
 });

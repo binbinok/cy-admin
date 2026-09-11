@@ -56,7 +56,7 @@ describe('commission service', () => {
         success: true,
       },
     });
-    const params = { technicianId: 't1', commissionRate: 35 };
+    const params = { manualRate: 20, cardOpenRate: 10, cardRenewRate: 5 };
     const result = await adminUpdateCommissionRate(params);
     expect(mockPost).toHaveBeenCalledWith('/invoke/adminUpdateCommissionRate', params);
     expect(result.success).toBe(true);
