@@ -298,6 +298,8 @@ cy-admin/
 9. **枚举/常量修改必须全链路同步** — 以支付方式为例：前端 `constants/business.ts`（选项）+ `types/member.ts`（类型）+ 云函数校验（`adminCreateIncomeRecord/index.js` 的 validPaymentTypes、`_shared/settlement.js` 的 VALID_PAYMENT_TYPES）。只改前端会导致用户界面可选、云函数校验拒绝。
 10. **`_shared/` 是每个函数目录下的物理副本** — 批量修改后需同步所有函数目录内副本（可用 sed 批量替换），并重新部署运行时真正引用该模块的函数（如结算链路：adminCreateSettlement / adminCompleteService / adminCreateIncomeRecord）；其余函数的副本为死代码，下次部署时自然带上。
 11. **云函数改动不部署等于没改** — 本地代码与云端运行版本无任何自动同步；改完必须 deploy + invoke 验证，排查线上异常先怀疑"云端还是旧代码"。完整闭环见第 15 节"云函数变更闭环"。
+12. **字段/参数/时间口径是"多副本资产"，改动必须全链路扫尾** — 页面 `dataIndex`、TS 类型、service 入参、云函数、测试断言、CSV 表头都是同一份契约的副本。2026-09 连续实例：导出工资条 `month`→`startDate/endDate` 后测试文件里两处调用漏改一处；`DashboardPage` 读已废弃的 `serviceId`/`remark` 导致工作台两列长期显示空；提成报表时间上界 `lte(end)` 与业绩统计 `end+24h` 口径不一致漏算结束日提成。强制动作见第 16 节。
+13. **wx-server-sdk 的 `.get()` 默认只返回 100 条，聚合统计必须分页拉全** — 不加 `limit` 的 `.get()` 在窗口记录超 100 后静默截断，聚合结果错且无任何报错（2026-09 实例：技师业绩列表 30 天窗口各技师订单数合计恰好 100，伊娜显示 0 单而明细 11 单）。所有做聚合/导出/核对的查询必须用 `skip + limit(1000)` 循环拉全（写法见 `adminGetTechnicianPerformance` 的 `fetchAllRecords`），仅分页展示列表可按页取。新增云函数时 code review 第一件事：检查每个 `.get()` 有没有 limit 或分页循环。
 
 ## 12. 关键文件速查
 
@@ -386,7 +388,38 @@ cy-admin/
 
 1. **改动清单**：动手前列出本次涉及的函数（修改 / 新建 / 删除）。新建函数必须同步三处：函数目录、`cloudbaserc.json` 注册项、`src/constants/api.ts` 常量；缺注册会导致 deploy 跳过或调用失败
 2. **本地修改**：`_shared/` 副本批量同步（陷阱 10）；前端 service 层类型必须与云函数**实际返回字段**对齐——`pendingAppointments`/`pendingCount` 漂移案例说明类型写错会让前端判断静默失效，且 build 不含 tsc，只有 dev checker 能暴露
-3. **部署**：`tcb fn deploy <name> --force --env-id cloud1-1g7yz5w766dd366f`，按改动清单逐个部署；仅批量变更时才用 `--all`。改了一条链路（如结算链路多个函数）要全部部署，不能只部署入口函数
+3. **部署**：`tcb fn deploy <name> --force --env-id cloud1-1g7yz5w766dd366f`，按改动清单逐个部署；仅批量变更时才用 `--all`。改了一条链路（如结算链路多个函数）要全部部署，不能只部署入口函数。**新建函数注册后立即部署**——不要攒到批次末尾，前端一旦上线调用未部署函数即报 FUNCTION_NOT_FOUND（2026-09-27 实例：adminUpdateConsumptionRecord 注册后漏部署，线上"修改消费记录"保存报错）。任务收尾时可用三处对账兜底：`src/constants/api.ts` 的 CF_ 名 ←→ `cloudbaserc.json` 注册项 ←→ `tcb fn list --limit 200`，三方集合应一致
 4. **部署后验证（不可省略）**：用 `tcb fn invoke` 或前端实测触发新代码路径，确认返回符合预期。**遇到 INTERNAL_ERROR 或行为照旧，第一怀疑对象是"云端还是旧代码"，而非本地逻辑**——先 invoke 验证云端版本再排查代码
 5. **收尾**：一次性函数三处删除（云端 `tcb fn delete` + 本地目录 + `cloudbaserc.json` 注册项）；涉及存量数据迁移的，部署后立即执行迁移并抽样核对结果
 6. **交付报告**：任务结束时明确告知用户——部署了哪些函数、验证结果是什么、线上是否已生效、前端静态托管是否需要重新发布
+
+---
+
+## 16. 字段/参数/口径变更的全链路同步（防"改一处漏一处"，强制执行）
+
+### 教训实例（2026-09，同类错误反复发生）
+
+1. **接口签名变更漏改调用点**：`adminExportPayroll` 入参 `month` → `startDate/endDate/periodLabel`，`finance-service.test.ts` 中两处调用只改了编译器先报错的那处，另一处以 TS 报错形式事后才暴露
+2. **前端字段未随重构同步**：三层架构重构后 `DashboardPage` 仍读已废弃的 `serviceId`、不存在的 `remark` 和技师 `_id`（`technicianId`），工作台服务项目/技师/备注三列长期显示错误
+3. **同业务多接口时间口径不一致**：`adminGetCommissionReport` 上界 `lte(end)`（漏掉结束日全天）vs `adminGetTechnicianPerformance` 的 `end+24h`，两个页面数字互相矛盾
+4. **同数据多写路径行为分叉**：settlement 路径写提成记录、`adminCreateIncomeRecord` 手工收入不写，业绩提成静默缺失
+5. **代码修正不覆盖存量数据**：导入的充值行提成错挂 `manual` 20%（应 `card_renew` 5%），代码改对后历史数据仍是错的
+
+**共同根因**：同一份契约（字段名、参数签名、时间边界、金额口径）在页面列定义、TS 类型、service 层、云函数、测试断言、CSV 表头、数据库文档中存在多个副本，改动时只更新了正在编辑的那一处。
+
+### 强制动作清单
+
+1. **改前先摸清副本面**：修改任何接口签名、返回字段、字段名、时间/金额口径前，先全量搜索副本点并列出改动清单：
+   ```bash
+   grep -rn "<旧参数名或旧字段名>" src/ tests/ cloudfunctions/ --include="*.ts" --include="*.tsx" --include="*.js"
+   grep -n "dataIndex" src/pages/<相关页面>.tsx
+   ```
+2. **改完必须 grep 归零**：同一搜索重跑一遍，旧标识符命中数必须为 0（本次教训中 `grep -n "month" finance-service.test.ts` 本可当场发现漏改）
+3. **`tsc --noEmit` 是签名/字段的唯一可靠类型门禁**（build 不含 tsc、vitest 不做类型检查、dev checker 只报打开过的文件），凡动过类型或签名必跑：
+   ```bash
+   node node_modules/typescript/bin/tsc --noEmit -p tsconfig.json
+   ```
+4. **时间窗口逐字对齐**：同一业务多个查询接口的上下界写法（`gte/lt/lte`、是否 `+24h`、按 `serviceTime` 还是 `createdAt`）必须完全一致；新增时间查询先读兄弟函数照抄口径，改口径则相关函数一次全改
+5. **多写路径同检**：一个集合有多条写入路径（如提成记录来自 settlement / 充值 / 手工收入）时，改其中一条的字段或行为必须核对其余路径是否需要同步
+6. **口径修正 = 代码 + 存量数据两件事**：已按旧口径落盘的记录不会因代码修复自动更正，需按第 15 节 Playbook 单独做数据修正并复核（本次实例：25 条充值提成记录改型）
+7. **测试断言逐条核对**：一个 service 函数通常有多条用例（成功/异常/分页），改签名时按 describe 块逐条过，不能只改编译器先报错的那条
