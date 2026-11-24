@@ -59,6 +59,7 @@ export const CF_GET_CONSUMPTION_LIST = 'adminGetConsumptionList';
 export const CF_GET_TECHNICIAN_PERFORMANCE = 'adminGetTechnicianPerformance';
 export const CF_GET_TECHNICIAN_INCOME_DETAIL = 'adminGetTechnicianIncomeDetail';
 export const CF_CREATE_INCOME_RECORD = 'adminCreateIncomeRecord';
+export const CF_UPDATE_CONSUMPTION_RECORD = 'adminUpdateConsumptionRecord';
 export const CF_CREATE_SETTLEMENT = 'adminCreateSettlement';
 export const CF_EXPORT_PAYROLL = 'adminExportPayroll';
 
@@ -75,6 +76,7 @@ export const CF_DELETE_DISCOUNT_LEVEL = 'adminDeleteDiscountLevel';
 export const CF_ASSIGN_DISCOUNT_LEVEL = 'adminAssignDiscountLevel';
 export const CF_RECHARGE_CARD = 'adminRechargeCard';
 export const CF_GET_CARD_RECHARGE_RECORDS = 'adminGetCardRechargeRecords';
+export const CF_GET_CARD_CONSUMPTION_RECORDS = 'adminGetCardConsumptionRecords';
 export const CF_DEDUCT_CARD_BALANCE = 'adminDeductCardBalance';
 export const CF_CANCEL_MEMBER_CARD = 'adminCancelMemberCard';
 export const CF_CREATE_MEMBER_CARD = 'adminCreateMemberCard';

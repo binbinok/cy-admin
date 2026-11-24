@@ -13,7 +13,11 @@ export interface TechnicianPerformance {
   technicianName: string;
   orderCount: number;
   totalAmount: number; // 分
-  commissionAmount?: number; // 应得提成金额(分，手工/开卡/续卡三类按当前全局比例合计)
+  commissionBase?: number; // 服务提成基数(分，原价中可计提部分)
+  serviceCommission?: number; // 服务提成(分，基数×手工提成比例)
+  cardSaleAmount?: number; // 会员卡开卡/续卡金额(分)
+  cardCommission?: number; // 会员卡提成(分，按开卡/续卡比例)
+  totalCommission?: number; // 总提成(分，服务提成+会员卡提成)
 }
 export interface CreateIncomeRecordPayload {
   serviceCategory: string;
@@ -31,6 +35,11 @@ export interface CreateIncomeRecordResult {
   originalAmount: number;
   discountAmount: number;
   pointsEarned: number;
+}
+export interface UpdateConsumptionRecordPayload {
+  recordId: string;
+  serviceTime: string;
+  note?: string;
 }
 export interface SettlementAddon {
   itemId: string;

@@ -8,6 +8,7 @@ import {
   adminGetTechnicianIncomeDetail,
   adminExportPayroll,
   adminCreateIncomeRecord,
+  adminUpdateConsumptionRecord,
 } from '@/services/finance';
 import http from '@/services/http';
 
@@ -373,36 +374,78 @@ describe('finance service', () => {
   });
 
   describe('adminExportPayroll', () => {
-    it('should POST technician id and month, return CSV payload', async () => {
+    it('should POST technician id with date range, return CSV payload', async () => {
       mockPost.mockResolvedValue({
         data: {
           success: true,
           data: {
-            content: '技师,月份,订单数,总金额,提成金额\n张技师,2026-05,20,200000,60000',
-            filename: 'payroll-t1-2026-05.csv',
+            content: '技师,统计周期,订单数\n张技师,2026-05,20',
+            filename: 'payroll-t1-2026-05-01_2026-05-31.csv',
             contentType: 'text/csv',
           },
         },
       });
 
-      const result = await adminExportPayroll({ technicianId: 't1', month: '2026-05' });
+      const result = await adminExportPayroll({
+        technicianId: 't1',
+        startDate: '2026-05-01',
+        endDate: '2026-05-31',
+        periodLabel: '2026-05',
+      });
 
       expect(mockPost).toHaveBeenCalledWith(
         '/invoke/adminExportPayroll',
-        { technicianId: 't1', month: '2026-05' },
+        { technicianId: 't1', startDate: '2026-05-01', endDate: '2026-05-31', periodLabel: '2026-05' },
       );
       expect(result.success).toBe(true);
-      expect(result.data?.filename).toBe('payroll-t1-2026-05.csv');
+      expect(result.data?.filename).toBe('payroll-t1-2026-05-01_2026-05-31.csv');
       expect(result.data?.contentType).toBe('text/csv');
-      expect(result.data?.content).toContain('提成金额');
+      expect(result.data?.content).toContain('统计周期');
     });
 
     it('should propagate error on failure', async () => {
       mockPost.mockRejectedValue(new Error('导出失败'));
 
       await expect(
-        adminExportPayroll({ technicianId: 't1', month: '2026-05' }),
+        adminExportPayroll({
+          technicianId: 't1',
+          startDate: '2026-05-01',
+          endDate: '2026-05-31',
+          periodLabel: '2026-05',
+        }),
       ).rejects.toThrow('导出失败');
+    });
+  });
+
+  describe('adminUpdateConsumptionRecord', () => {
+    it('should POST recordId and ISO serviceTime, return recordId', async () => {
+      mockPost.mockResolvedValue({
+        data: {
+          success: true,
+          data: { recordId: 'rec1' },
+        },
+      });
+
+      const result = await adminUpdateConsumptionRecord({
+        recordId: 'rec1',
+        serviceTime: '2026-09-12T06:00:00.000Z',
+        note: '已修正服务时间',
+      });
+
+      expect(mockPost).toHaveBeenCalledWith(
+        '/invoke/adminUpdateConsumptionRecord',
+        { recordId: 'rec1', serviceTime: '2026-09-12T06:00:00.000Z', note: '已修正服务时间' },
+      );
+      expect(result.success).toBe(true);
+      expect(result.data?.recordId).toBe('rec1');
+    });
+
+    it('should propagate error on failure', async () => {
+      mockPost.mockRejectedValue(new Error('消费记录修改失败'));
+
+      await expect(
+        adminUpdateConsumptionRecord({ recordId: 'rec1', serviceTime: '2026-09-12T06:00:00.000Z' }),
+      ).rejects.toThrow('消费记录修改失败');
     });
   });
 });

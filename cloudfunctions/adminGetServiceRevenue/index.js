@@ -6,6 +6,26 @@ const { AdminErrorCode } = require('./_shared/errors');
 const { db, _ } = require('./_shared/db');
 
 /**
+ * 分页拉取集合内符合条件的全部记录（wx-server-sdk 单次 get 默认上限 100 条）
+ * @param {string} name
+ * @param {Record<string, unknown>} where
+ * @returns {Promise<Record<string, unknown>[]>}
+ */
+async function fetchAllRecords(name, where) {
+  const pageSize = 1000;
+  let all = [];
+  let skip = 0;
+  for (;;) {
+    const { data } = await db.collection(name).where(where).skip(skip).limit(pageSize).get();
+    all = all.concat(data || []);
+    if (!data || data.length < pageSize) {
+      return all;
+    }
+    skip += pageSize;
+  }
+}
+
+/**
  * 服务分类收入分布：按服务大类聚合收入
  *
  * 统计口径：
@@ -36,11 +56,9 @@ exports.main = async (event = {}) => {
     const endExclusive = new Date(end.getTime() + 24 * 60 * 60 * 1000);
 
     // 查询时间范围内的消费记录（按服务时间归属）
-    const { data: records } = await db.collection('consumption_records')
-      .where({
-        serviceTime: _.gte(start).and(_.lt(endExclusive)),
-      })
-      .get();
+    const records = await fetchAllRecords('consumption_records', {
+      serviceTime: _.gte(start).and(_.lt(endExclusive)),
+    });
 
     // 历史兜底：查询所有服务项目以获取分类信息
     const { data: services } = await db.collection('services').get();
@@ -58,7 +76,8 @@ exports.main = async (event = {}) => {
         const service = serviceMap.get(record.serviceId);
         category = record.serviceCategory || (service && service.category) || '未分类';
       }
-      categoryMap.set(category, (categoryMap.get(category) || 0) + (record.amount || 0));
+      const revenue = (record.amount || 0) + (record.sessionCoveredAmount || 0);
+      categoryMap.set(category, (categoryMap.get(category) || 0) + revenue);
     }
 
     const data = Array.from(categoryMap.entries())

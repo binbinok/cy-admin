@@ -92,7 +92,7 @@ describe('memberCard service', () => {
 
   it('adminGetCardRechargeRecords should call expected endpoint', async () => {
     mockPost.mockResolvedValue({ data: { success: true, data: { list: [], total: 0 } } });
-    const params = { cardId: 'c1', page: 1, pageSize: 10 };
+    const params = { memberId: 'M001', page: 1, pageSize: 10 };
     const result = await adminGetCardRechargeRecords(params);
     expect(mockPost).toHaveBeenCalledWith('/invoke/adminGetCardRechargeRecords', params);
     expect(result.success).toBe(true);

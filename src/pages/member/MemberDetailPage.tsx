@@ -35,6 +35,8 @@ import {
   adminCreateMemberCard,
   adminCancelMemberCard,
   adminUpdateCardLevel,
+  adminGetCardRechargeRecords,
+  adminGetCardConsumptionRecords,
   type DiscountLevel,
 } from '@/services/memberCard';
 import { maskPhone, formatAmount, formatDate } from '@/utils/format';
@@ -43,7 +45,8 @@ import { MEMBER_LEVELS } from '@/constants/business';
 import { getUpgradeTargetLevel } from '@/utils/cardLevel';
 import { adminGetTechnicianList } from '@/services/technician';
 import SessionCardPanel from './SessionCardPanel';
-import type { ConsumptionRecord, CardRechargeRecord, LevelHistoryEntry } from '@/types/member';
+import CardCoveredLines from '@/components/common/CardCoveredLines';
+import type { ConsumptionRecord, CardRechargeRecord, CardConsumptionRecord, LevelHistoryEntry } from '@/types/member';
 
 const { Title } = Typography;
 const CONSUMPTION_PAGE_SIZE = 10;
@@ -146,6 +149,24 @@ export default function MemberDetailPage() {
 
   const consumptionList = consumptionData?.list ?? [];
   const consumptionTotal = consumptionData?.total ?? 0;
+
+  const cardId = card?._id;
+  const { data: rechargeRecords } = useQuery({
+    queryKey: ['cardRechargeRecords', memberId],
+    queryFn: async () => {
+      const res = await adminGetCardRechargeRecords({ memberId: memberId!, page: 1, pageSize: 100 });
+      return res.data?.list ?? [];
+    },
+    enabled: !!memberId && !!cardId,
+  });
+  const { data: cardConsumptionRecords } = useQuery({
+    queryKey: ['cardConsumptionRecords', cardId],
+    queryFn: async () => {
+      const res = await adminGetCardConsumptionRecords({ cardId: cardId! });
+      return res.data?.records ?? [];
+    },
+    enabled: !!cardId,
+  });
 
   const getLevelLabel = useCallback((level: string) => {
     const found = MEMBER_LEVELS.find((l) => l.key === level);
@@ -399,7 +420,15 @@ export default function MemberDetailPage() {
       title: '实际金额',
       dataIndex: 'amount',
       key: 'amount',
-      render: (val: number) => `¥${formatAmount(val)}`,
+      render: (val: number, record: ConsumptionRecord) => (
+        <div>
+          <div>¥{formatAmount(val)}</div>
+          <CardCoveredLines
+            sessionCoveredAmount={record.sessionCoveredAmount}
+            paymentDetails={record.paymentDetails}
+          />
+        </div>
+      ),
     },
     {
       title: '获得积分',
@@ -426,7 +455,45 @@ export default function MemberDetailPage() {
       title: '充值后余额',
       dataIndex: 'balanceAfter',
       key: 'balanceAfter',
+      render: (val: number | null) => (val === null || val === undefined ? '—' : `¥${formatAmount(val)}`),
+    },
+    {
+      title: '备注',
+      dataIndex: 'note',
+      key: 'note',
+      render: (val: string) => val || '—',
+    },
+  ];
+
+  const cardConsumptionColumns: ColumnsType<CardConsumptionRecord> = [
+    {
+      title: '消费时间',
+      dataIndex: 'createdAt',
+      key: 'createdAt',
+      render: (val: Date | string) => formatDate(val),
+    },
+    {
+      title: '项目',
+      dataIndex: 'item',
+      key: 'item',
+    },
+    {
+      title: '扣款金额',
+      dataIndex: 'amount',
+      key: 'amount',
       render: (val: number) => `¥${formatAmount(val)}`,
+    },
+    {
+      title: '扣款后余额',
+      dataIndex: 'balanceAfter',
+      key: 'balanceAfter',
+      render: (val: number | null) => (val === null || val === undefined ? '—' : `¥${formatAmount(val)}`),
+    },
+    {
+      title: '备注',
+      dataIndex: 'note',
+      key: 'note',
+      render: (val: string) => val || '—',
     },
   ];
 
@@ -521,7 +588,16 @@ export default function MemberDetailPage() {
           </Title>
           <Table<CardRechargeRecord>
             columns={rechargeColumns}
-            dataSource={[]}
+            dataSource={rechargeRecords ?? []}
+            rowKey="_id"
+            pagination={false}
+          />
+          <Title level={5} style={{ marginTop: 24, marginBottom: 12 }}>
+            卡扣流水
+          </Title>
+          <Table<CardConsumptionRecord>
+            columns={cardConsumptionColumns}
+            dataSource={cardConsumptionRecords ?? []}
             rowKey="_id"
             pagination={false}
           />

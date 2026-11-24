@@ -7,6 +7,7 @@ import {
   DatePicker,
   Form,
   Modal,
+  Radio,
   Row,
   Select,
   Table,
@@ -21,6 +22,8 @@ import { useQuery } from '@tanstack/react-query';
 import RevenueLineChart from '@/components/charts/RevenueLineChart';
 import ServicePieChart from '@/components/charts/ServicePieChart';
 import IncomeEntryModal from '@/components/settlement/IncomeEntryModal';
+import ConsumptionRecordEditModal from '@/components/finance/ConsumptionRecordEditModal';
+import CardCoveredLines from '@/components/common/CardCoveredLines';
 import {
   adminGetFinanceSummary,
   adminGetRevenueTrend,
@@ -69,12 +72,16 @@ export default function FinancePage() {
   const [consumptionList, setConsumptionList] = useState<ConsumptionRecord[]>([]);
   const [technicianPerformance, setTechnicianPerformance] = useState<TechnicianPerformance[]>([]);
   const [showResigned, setShowResigned] = useState<boolean>(false);
+  const [performanceMode, setPerformanceMode] = useState<'month' | 'year'>('month');
+  const [performanceMonth, setPerformanceMonth] = useState<Dayjs>(dayjs());
+  const [performanceYear, setPerformanceYear] = useState<Dayjs>(dayjs());
   const [consumptionTotal, setConsumptionTotal] = useState<number>(0);
   const [consumptionPage, setConsumptionPage] = useState<number>(1);
   const pageSize = 10;
   const [consumptionLoading, setConsumptionLoading] = useState<boolean>(false);
   const [performanceLoading, setPerformanceLoading] = useState<boolean>(false);
   const [incomeModalOpen, setIncomeModalOpen] = useState<boolean>(false);
+  const [editRecord, setEditRecord] = useState<ConsumptionRecord | null>(null);
   const [prepaidSummary, setPrepaidSummary] = useState<PrepaidSummary | null>(null);
 
   // 技师业绩明细弹窗状态
@@ -108,6 +115,18 @@ export default function FinancePage() {
       endDate: dateRange[1].format('YYYY-MM-DD'),
     };
   }, [dateRange]);
+
+  const performanceDateParams = useMemo(() => {
+    if (performanceMode === 'year') {
+      const year = performanceYear.year();
+      return { startDate: `${year}-01-01`, endDate: `${year}-12-31`, periodLabel: `${year}年` };
+    }
+    return {
+      startDate: performanceMonth.startOf('month').format('YYYY-MM-DD'),
+      endDate: performanceMonth.endOf('month').format('YYYY-MM-DD'),
+      periodLabel: performanceMonth.format('YYYY-MM'),
+    };
+  }, [performanceMode, performanceMonth, performanceYear]);
 
   const resignedTechnicianIds = useMemo(
     () =>
@@ -185,7 +204,7 @@ export default function FinancePage() {
   const fetchTechnicianPerformance = useCallback(async (): Promise<void> => {
     setPerformanceLoading(true);
     try {
-      const res = await adminGetTechnicianPerformance(dateParams);
+      const res = await adminGetTechnicianPerformance(performanceDateParams);
       if (!res.success) {
         throw new Error(res.error?.message ?? '技师业绩获取失败');
       }
@@ -195,7 +214,7 @@ export default function FinancePage() {
     } finally {
       setPerformanceLoading(false);
     }
-  }, [dateParams]);
+  }, [performanceDateParams]);
 
   const fetchPageData = useCallback(async (): Promise<void> => {
     setLoading(true);
@@ -234,8 +253,8 @@ export default function FinancePage() {
     try {
       const res = await adminGetTechnicianIncomeDetail({
         technicianId,
-        startDate: dateParams.startDate,
-        endDate: dateParams.endDate,
+        startDate: performanceDateParams.startDate,
+        endDate: performanceDateParams.endDate,
         page,
         pageSize: 10,
       });
@@ -250,7 +269,7 @@ export default function FinancePage() {
     } finally {
       setDetailLoading(false);
     }
-  }, [dateParams]);
+  }, [performanceDateParams]);
 
   // 打开技师业绩明细弹窗
   const handleOpenDetailModal = useCallback(async (technicianId: string) => {
@@ -285,11 +304,11 @@ export default function FinancePage() {
       const values = await exportForm.validateFields();
       setExportSubmitting(true);
 
-      const monthValue = (values.month as Dayjs).format('YYYY-MM');
-
       const res = await adminExportPayroll({
         technicianId: values.technicianId,
-        month: monthValue,
+        startDate: performanceDateParams.startDate,
+        endDate: performanceDateParams.endDate,
+        periodLabel: performanceDateParams.periodLabel,
       });
 
       if (!res.success) {
@@ -315,7 +334,7 @@ export default function FinancePage() {
     } finally {
       setExportSubmitting(false);
     }
-  }, [exportForm]);
+  }, [exportForm, performanceDateParams]);
 
   const consumptionColumns: ColumnsType<ConsumptionRecord> = [
     {
@@ -342,13 +361,38 @@ export default function FinancePage() {
       dataIndex: 'amount',
       key: 'amount',
       width: 100,
-      render: (value: number) => `¥${formatAmount(value)}`,
+      render: (value: number, record: ConsumptionRecord) => (
+        <div>
+          <div>¥{formatAmount(value)}</div>
+          <CardCoveredLines
+            sessionCoveredAmount={record.sessionCoveredAmount}
+            paymentDetails={record.paymentDetails}
+          />
+        </div>
+      ),
     },
     {
       title: '技师',
       dataIndex: 'technicianName',
       key: 'technicianName',
       width: 120,
+    },
+    {
+      title: '操作',
+      key: 'action',
+      width: 80,
+      render: (_: unknown, record: ConsumptionRecord) =>
+        isSuperAdmin ? (
+          <Button
+            type="link"
+            size="small"
+            onClick={() => setEditRecord(record)}
+          >
+            修改
+          </Button>
+        ) : (
+          null
+        ),
     },
   ];
 
@@ -373,10 +417,38 @@ export default function FinancePage() {
       render: (value: number) => `¥${formatAmount(value)}`,
     },
     {
-      title: '应得提成',
-      dataIndex: 'commissionAmount',
-      key: 'commissionAmount',
-      width: 140,
+      title: '提成基数',
+      dataIndex: 'commissionBase',
+      key: 'commissionBase',
+      width: 120,
+      render: (value: number | undefined) => `¥${formatAmount(value ?? 0)}`,
+    },
+    {
+      title: '服务提成',
+      dataIndex: 'serviceCommission',
+      key: 'serviceCommission',
+      width: 120,
+      render: (value: number | undefined) => `¥${formatAmount(value ?? 0)}`,
+    },
+    {
+      title: '会员卡开卡/续卡',
+      dataIndex: 'cardSaleAmount',
+      key: 'cardSaleAmount',
+      width: 150,
+      render: (value: number | undefined) => `¥${formatAmount(value ?? 0)}`,
+    },
+    {
+      title: '会员卡提成',
+      dataIndex: 'cardCommission',
+      key: 'cardCommission',
+      width: 120,
+      render: (value: number | undefined) => `¥${formatAmount(value ?? 0)}`,
+    },
+    {
+      title: '总提成',
+      dataIndex: 'totalCommission',
+      key: 'totalCommission',
+      width: 120,
       render: (value: number | undefined) => `¥${formatAmount(value ?? 0)}`,
     },
     {
@@ -432,17 +504,22 @@ export default function FinancePage() {
       key: 'paymentDetails',
       width: 200,
       render: (_: unknown, record: ConsumptionRecord) => {
-        if (!record.paymentDetails || record.paymentDetails.length === 0) {
+        const details = record.paymentDetails ?? [];
+        const sessionCovered = record.sessionCoveredAmount ?? 0;
+        if (details.length === 0 && sessionCovered <= 0) {
           return '-';
         }
         return (
           <Space direction="vertical" size={0}>
-            {record.paymentDetails.map((detail: PaymentDetail, index: number) => (
+            {details.map((detail: PaymentDetail, index: number) => (
               <span key={index}>
                 {PAYMENT_TYPE_OPTIONS.find((opt) => opt.value === detail.paymentType)?.label ?? detail.paymentType}:
                 ¥{formatAmount(detail.amount)}
               </span>
             ))}
+            {sessionCovered > 0 && (
+              <span>次卡核销: ¥{formatAmount(sessionCovered)}</span>
+            )}
           </Space>
         );
       },
@@ -583,12 +660,41 @@ export default function FinancePage() {
       <Card
         title="技师业绩统计"
         extra={
-          <Checkbox
-            checked={showResigned}
-            onChange={(e) => setShowResigned(e.target.checked)}
-          >
-            显示离职员工
-          </Checkbox>
+          <Space size="small" wrap>
+            <Radio.Group
+              size="small"
+              optionType="button"
+              value={performanceMode}
+              onChange={(e) => setPerformanceMode(e.target.value as 'month' | 'year')}
+              options={[
+                { label: '按月', value: 'month' },
+                { label: '按年', value: 'year' },
+              ]}
+            />
+            {performanceMode === 'month' ? (
+              <DatePicker
+                picker="month"
+                size="small"
+                allowClear={false}
+                value={performanceMonth}
+                onChange={(value) => value && setPerformanceMonth(value)}
+              />
+            ) : (
+              <DatePicker
+                picker="year"
+                size="small"
+                allowClear={false}
+                value={performanceYear}
+                onChange={(value) => value && setPerformanceYear(value)}
+              />
+            )}
+            <Checkbox
+              checked={showResigned}
+              onChange={(e) => setShowResigned(e.target.checked)}
+            >
+              显示离职员工
+            </Checkbox>
+          </Space>
         }
       >
         <Table<TechnicianPerformance>
@@ -597,12 +703,20 @@ export default function FinancePage() {
           columns={performanceColumns}
           dataSource={visiblePerformance}
           pagination={false}
+          scroll={{ x: 1100 }}
         />
       </Card>
 
       <IncomeEntryModal
         open={incomeModalOpen}
         onClose={() => setIncomeModalOpen(false)}
+        onSuccess={handleIncomeSuccess}
+      />
+
+      <ConsumptionRecordEditModal
+        open={editRecord !== null}
+        record={editRecord}
+        onClose={() => setEditRecord(null)}
         onSuccess={handleIncomeSuccess}
       />
 
@@ -661,13 +775,9 @@ export default function FinancePage() {
               }))}
             />
           </Form.Item>
-          <Form.Item
-            name="month"
-            label="月份"
-            rules={[{ required: true, message: '请选择月份' }]}
-          >
-            <DatePicker.MonthPicker style={{ width: '100%' }} placeholder="请选择月份" />
-          </Form.Item>
+          <Typography.Text type="secondary">
+            统计周期：{performanceDateParams.periodLabel}（{performanceDateParams.startDate} ~ {performanceDateParams.endDate}）
+          </Typography.Text>
         </Form>
       </Modal>
     </div>

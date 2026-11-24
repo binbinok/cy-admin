@@ -35,6 +35,26 @@ function parseDateRange(event) {
   return { start, endExclusive };
 }
 
+/**
+ * 分页拉取集合内符合条件的全部记录（wx-server-sdk 单次 get 默认上限 100 条）
+ * @param {string} name
+ * @param {Record<string, unknown>} where
+ * @returns {Promise<Record<string, unknown>[]>}
+ */
+async function fetchAllRecords(name, where) {
+  const pageSize = 1000;
+  let all = [];
+  let skip = 0;
+  for (;;) {
+    const { data } = await db.collection(name).where(where).skip(skip).limit(pageSize).get();
+    all = all.concat(data || []);
+    if (!data || data.length < pageSize) {
+      return all;
+    }
+    skip += pageSize;
+  }
+}
+
 exports.main = async (event = {}) => {
   try {
     const adminInfo = verifyAuth(event);
@@ -50,16 +70,15 @@ exports.main = async (event = {}) => {
 
     const { start, endExclusive } = parseDateRange({ startDate, endDate });
 
-    const { data: list } = await db.collection('consumption_records')
-      .where({
-        serviceTime: _.gte(start).and(_.lt(endExclusive)),
-      })
-      .get();
+    const list = await fetchAllRecords('consumption_records', {
+      serviceTime: _.gte(start).and(_.lt(endExclusive)),
+    });
 
     const map = new Map();
     for (const item of list) {
       const key = toDateKey(item.serviceTime);
-      map.set(key, (map.get(key) || 0) + (item.amount || 0));
+      const revenue = (item.amount || 0) + (item.sessionCoveredAmount || 0);
+      map.set(key, (map.get(key) || 0) + revenue);
     }
 
     const data = Array.from(map.entries())

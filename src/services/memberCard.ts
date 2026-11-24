@@ -7,6 +7,7 @@ import {
   CF_ASSIGN_DISCOUNT_LEVEL,
   CF_RECHARGE_CARD,
   CF_GET_CARD_RECHARGE_RECORDS,
+  CF_GET_CARD_CONSUMPTION_RECORDS,
   CF_DEDUCT_CARD_BALANCE,
   CF_GET_MEMBER_CARD_ASSOCIATION,
   CF_CREATE_MEMBER_CARD,
@@ -14,7 +15,7 @@ import {
   CF_UPDATE_CARD_LEVEL,
 } from '@/constants/api';
 import type { ApiResponse, PageResult } from '@/types/common';
-import type { CardRechargeRecord, MemberCard } from '@/types/member';
+import type { CardConsumptionRecord, CardRechargeRecord, MemberCard } from '@/types/member';
 
 export interface DiscountLevel {
   _id: string;
@@ -109,10 +110,20 @@ export async function adminUpdateCardLevel(
 }
 
 export async function adminGetCardRechargeRecords(
-  params: { cardId: string; page: number; pageSize: number },
+  params: { memberId: string; page: number; pageSize: number },
 ): Promise<ApiResponse<PageResult<CardRechargeRecord>>> {
   const response = await http.post<ApiResponse<PageResult<CardRechargeRecord>>>(
     `/invoke/${CF_GET_CARD_RECHARGE_RECORDS}`,
+    params,
+  );
+  return response.data;
+}
+
+export async function adminGetCardConsumptionRecords(
+  params: { cardId: string },
+): Promise<ApiResponse<{ records: CardConsumptionRecord[] }>> {
+  const response = await http.post<ApiResponse<{ records: CardConsumptionRecord[] }>>(
+    `/invoke/${CF_GET_CARD_CONSUMPTION_RECORDS}`,
     params,
   );
   return response.data;

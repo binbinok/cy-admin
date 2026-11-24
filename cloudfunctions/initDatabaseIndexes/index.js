@@ -31,9 +31,11 @@ exports.main = async (event = {}) => {
       'consumption_records',
       'commission_records',
       'card_recharge_records',
+      'card_consumption_records',
       'session_card_types',
       'member_session_cards',
       'session_card_redemptions',
+      'counters',
     ];
 
     for (const name of collections) {
@@ -71,7 +73,7 @@ exports.main = async (event = {}) => {
         collection: 'appointments',
         name: 'appointmentId_1',
         fields: { appointmentId: 1 },
-        unique: true,
+        note: '编号每日重置、跨日重复属预期；若控制台存在旧版唯一索引 appointmentId_1 必须删除，否则写入会冲突',
       },
       {
         collection: 'members',
@@ -112,6 +114,16 @@ exports.main = async (event = {}) => {
         name: 'cardId_1_createdAt_-1',
         fields: { cardId: 1, createdAt: -1 },
       },
+      {
+        collection: 'card_consumption_records',
+        name: 'cardId_1_createdAt_-1',
+        fields: { cardId: 1, createdAt: -1 },
+      },
+      {
+        collection: 'card_consumption_records',
+        name: 'memberId_1_createdAt_-1',
+        fields: { memberId: 1, createdAt: -1 },
+      },
     ];
 
     // 由于 CloudBase Node SDK 不直接支持 createIndex
@@ -123,6 +135,7 @@ exports.main = async (event = {}) => {
         fields: idx.fields,
         status: 'manual_required',
         message: '请在 CloudBase 控制台手动创建此索引',
+        note: idx.note || '',
       });
     }
 

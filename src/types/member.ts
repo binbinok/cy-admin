@@ -46,10 +46,23 @@ export interface CardRechargeRecord {
   cardId: string;
   memberId: string;
   amount: number; // 分
-  balanceAfter: number; // 分
+  balanceAfter: number | null; // 分
   operatorAdminId: string;
+  note?: string;
   levelUpgrade?: { fromLevelId: string; toLevelId: string };
   createdAt: Date;
+}
+
+export interface CardConsumptionRecord {
+  _id: string;
+  cardId: string;
+  memberId: string;
+  amount: number; // 分
+  balanceAfter: number | null; // 分
+  item: string;
+  note: string;
+  consumptionId: string;
+  createdAt: Date | string;
 }
 
 export interface PaymentDetail {
@@ -83,5 +96,7 @@ export interface ConsumptionRecord {
   technicianName?: string;
   serviceTime?: Date | string;
   paymentDetails?: PaymentDetail[];
+  sessionCoveredAmount?: number; // 分，次卡核销覆盖金额
+  sessionRecognizedAmount?: number; // 分，次卡核销确认收入金额
   createdAt: Date;
 }

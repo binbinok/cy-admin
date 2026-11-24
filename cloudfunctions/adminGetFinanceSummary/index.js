@@ -42,17 +42,28 @@ function getDateRange(period) {
   return { start, end };
 }
 /**
- * 读取时间范围内消费记录。
+ * 读取时间范围内消费记录（wx-server-sdk 单次 get 默认上限 100 条，需分页拉全）。
  * @param {{ start: Date, end: Date }} range
  * @returns {Promise<Record<string, unknown>[]>}
  */
 async function getRecordsByRange(range) {
-  const { data: list } = await db.collection('consumption_records')
-    .where({
-      serviceTime: _.gte(range.start).and(_.lt(range.end)),
-    })
-    .get();
-  return list;
+  const pageSize = 1000;
+  let all = [];
+  let skip = 0;
+  for (;;) {
+    const { data } = await db.collection('consumption_records')
+      .where({
+        serviceTime: _.gte(range.start).and(_.lt(range.end)),
+      })
+      .skip(skip)
+      .limit(pageSize)
+      .get();
+    all = all.concat(data || []);
+    if (!data || data.length < pageSize) {
+      return all;
+    }
+    skip += pageSize;
+  }
 }
 
 exports.main = async (event = {}) => {
@@ -71,7 +82,7 @@ exports.main = async (event = {}) => {
     const { start, end } = getDateRange(period);
 
     const list = await getRecordsByRange({ start, end });
-    const totalRevenue = list.reduce((sum, item) => sum + (item.amount || 0), 0);
+    const totalRevenue = list.reduce((sum, item) => sum + (item.amount || 0) + (item.sessionCoveredAmount || 0), 0);
 
     return success({
       totalRevenue,

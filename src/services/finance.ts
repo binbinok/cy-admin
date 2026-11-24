@@ -7,6 +7,7 @@ import {
   CF_GET_TECHNICIAN_PERFORMANCE,
   CF_GET_TECHNICIAN_INCOME_DETAIL,
   CF_CREATE_INCOME_RECORD,
+  CF_UPDATE_CONSUMPTION_RECORD,
   CF_CREATE_SETTLEMENT,
   CF_EXPORT_PAYROLL,
 } from '@/constants/api';
@@ -18,6 +19,7 @@ import type {
   CreateIncomeRecordResult,
   CreateSettlementPayload,
   SettlementResult,
+  UpdateConsumptionRecordPayload,
 } from '@/types/finance';
 import type { ConsumptionRecord } from '@/types/member';
 import type { ApiResponse, PageResult } from '@/types/common';
@@ -95,7 +97,7 @@ export async function adminGetTechnicianIncomeDetail(
 }
 
 export async function adminExportPayroll(
-  params: { technicianId: string; month: string },
+  params: { technicianId: string; startDate: string; endDate: string; periodLabel: string },
 ): Promise<ApiResponse<{ content: string; filename: string; contentType: string }>> {
   const response = await http.post<ApiResponse<{ content: string; filename: string; contentType: string }>>(
     `/invoke/${CF_EXPORT_PAYROLL}`,
@@ -119,6 +121,16 @@ export async function adminCreateSettlement(
 ): Promise<ApiResponse<SettlementResult>> {
   const response = await http.post<ApiResponse<SettlementResult>>(
     `/invoke/${CF_CREATE_SETTLEMENT}`,
+    { ...payload },
+  );
+  return response.data;
+}
+
+export async function adminUpdateConsumptionRecord(
+  payload: UpdateConsumptionRecordPayload,
+): Promise<ApiResponse<{ recordId: string }>> {
+  const response = await http.post<ApiResponse<{ recordId: string }>>(
+    `/invoke/${CF_UPDATE_CONSUMPTION_RECORD}`,
     { ...payload },
   );
   return response.data;
