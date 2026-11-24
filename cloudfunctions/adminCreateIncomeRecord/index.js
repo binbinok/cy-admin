@@ -4,6 +4,7 @@ const { verifyAuth } = require('./_shared/auth');
 const { success, error } = require('./_shared/response');
 const { AdminErrorCode } = require('./_shared/errors');
 const { db, _ } = require('./_shared/db');
+const { getGlobalCommissionConfig } = require('./_shared/commissionConfig');
 /**
  * 读取服务分类映射，支持 code/name/alias 三类值。
  * @returns {Promise<Map<string, { code: string, name: string }>>}
@@ -191,6 +192,21 @@ exports.main = async (event = {}) => {
     };
     const addResult = await db.collection('consumption_records').add({
       data: consumptionRecord,
+    });
+    const config = await getGlobalCommissionConfig();
+    await db.collection('commission_records').add({
+      data: {
+        type: 'manual',
+        technicianId,
+        technicianName: technicianDoc.name || '',
+        appointmentId: '',
+        consumptionId: addResult._id,
+        serviceAmount: amount,
+        commissionRate: config.manualRate,
+        commissionAmount: Math.floor((amount * config.manualRate) / 100),
+        serviceTime,
+        createdAt: now,
+      },
     });
     if (memberDoc) {
       const memberUpdateData = {

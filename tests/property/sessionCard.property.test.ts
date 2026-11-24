@@ -134,7 +134,7 @@ describe('次卡覆盖项结算不变量', () => {
     );
   });
 
-  it('覆盖项不参与折扣与常项提成', () => {
+  it('覆盖项不参与折扣，按原价计入提成基数', () => {
     fc.assert(
       fc.property(priceArb, priceArb, (coveredPrice, normalPrice) => {
         const result = computeSettlementAmounts({
@@ -147,7 +147,7 @@ describe('次卡覆盖项结算不变量', () => {
         const expectedDiscount = normalPrice - Math.floor((normalPrice * 80) / 100);
         return (
           result.discountAmount === expectedDiscount &&
-          result.commissionableAmount === normalPrice &&
+          result.commissionableAmount === result.actualAmount + coveredPrice &&
           result.sessionCoveredAmount === coveredPrice
         );
       }),

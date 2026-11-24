@@ -135,7 +135,7 @@ describe('积分与提成规则不变量', () => {
     );
   });
 
-  it('提成仅作用于可提成项目金额，不可提成项目不影响提成', () => {
+  it('提成基数 = 实收 + 次卡覆盖金额，全部项目计入实际收入', () => {
     fc.assert(
       fc.property(
         priceArb,
@@ -167,9 +167,10 @@ describe('积分与提成规则不变量', () => {
             rate,
           );
           return (
-            withExtra.commissionableAmount === withoutExtra.commissionableAmount &&
-            withExtra.commissionableAmount === basePrice &&
-            commissionWithExtra === commissionWithoutExtra
+            withExtra.commissionableAmount === withExtra.actualAmount + withExtra.sessionCoveredAmount &&
+            withExtra.commissionableAmount === basePrice + nonCommissionablePrice &&
+            withoutExtra.commissionableAmount === basePrice &&
+            commissionWithExtra >= commissionWithoutExtra
           );
         },
       ),

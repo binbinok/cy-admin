@@ -7,6 +7,26 @@ const { db, _ } = require('./_shared/db');
 const { getGlobalCommissionConfig } = require('./_shared/commissionConfig');
 
 /**
+ * 分页拉取集合内符合条件的全部记录（wx-server-sdk 单次 get 默认上限 100 条）
+ * @param {string} name
+ * @param {Record<string, unknown>} where
+ * @returns {Promise<Record<string, unknown>[]>}
+ */
+async function fetchAllRecords(name, where) {
+  const pageSize = 1000;
+  let all = [];
+  let skip = 0;
+  for (;;) {
+    const { data } = await db.collection(name).where(where).skip(skip).limit(pageSize).get();
+    all = all.concat(data || []);
+    if (!data || data.length < pageSize) {
+      return all;
+    }
+    skip += pageSize;
+  }
+}
+
+/**
  * 技师业绩统计：按技师聚合消费记录
  *
  * 入参：{ startDate, endDate }
@@ -33,18 +53,15 @@ exports.main = async (event = {}) => {
     const endExclusive = new Date(end.getTime() + 24 * 60 * 60 * 1000);
 
     // 查询时间范围内消费记录（按服务时间归属）
-    const { data: records } = await db.collection('consumption_records')
-      .where({
-        serviceTime: _.gte(start).and(_.lt(endExclusive)),
-      })
-      .get();
+    const records = await fetchAllRecords('consumption_records', {
+      serviceTime: _.gte(start).and(_.lt(endExclusive)),
+    });
 
-    // 查询时间范围内提成记录（按记录时间归属），与提成报表同口径
-    const { data: commissionRecords } = await db.collection('commission_records')
-      .where({
-        createdAt: _.gte(start).and(_.lte(endExclusive)),
-      })
-      .get();
+    // 查询时间范围内提成记录（按业务归属时间 serviceTime，历史记录回退 createdAt）
+    const commissionRecords = await fetchAllRecords('commission_records', _.or([
+      { serviceTime: _.gte(start).and(_.lt(endExclusive)) },
+      { serviceTime: _.exists(false), createdAt: _.gte(start).and(_.lt(endExclusive)) },
+    ]));
 
     const config = await getGlobalCommissionConfig();
 
@@ -57,14 +74,18 @@ exports.main = async (event = {}) => {
         technicianName: record.technicianName || '未知技师',
         orderCount: 0,
         totalAmount: 0,
-        commissionAmount: 0,
+        commissionBase: 0,
+        serviceCommission: 0,
+        cardSaleAmount: 0,
+        cardCommission: 0,
+        totalCommission: 0,
       };
       current.orderCount += 1;
-      current.totalAmount += record.amount || 0;
+      current.totalAmount += (record.amount || 0) + (record.sessionCoveredAmount || 0);
       statMap.set(tid, current);
     }
 
-    // 聚合提成金额（手工/开卡/续卡三类，按当前全局比例实时重算）
+    // 聚合提成金额（服务/开卡/续卡分列，按当前全局比例实时重算）
     for (const record of commissionRecords) {
       const tid = record.technicianId || 'unknown';
       const current = statMap.get(tid) || {
@@ -72,11 +93,23 @@ exports.main = async (event = {}) => {
         technicianName: record.technicianName || '未知技师',
         orderCount: 0,
         totalAmount: 0,
-        commissionAmount: 0,
+        commissionBase: 0,
+        serviceCommission: 0,
+        cardSaleAmount: 0,
+        cardCommission: 0,
+        totalCommission: 0,
       };
       const type = ['manual', 'card_open', 'card_renew'].includes(record.type) ? record.type : 'manual';
       const rate = type === 'card_open' ? config.cardOpenRate : type === 'card_renew' ? config.cardRenewRate : config.manualRate;
-      current.commissionAmount += Math.floor(((record.serviceAmount || 0) * rate) / 100);
+      const commission = Math.floor(((record.serviceAmount || 0) * rate) / 100);
+      if (type === 'manual') {
+        current.commissionBase += record.serviceAmount || 0;
+        current.serviceCommission += commission;
+      } else {
+        current.cardSaleAmount += record.serviceAmount || 0;
+        current.cardCommission += commission;
+      }
+      current.totalCommission += commission;
       statMap.set(tid, current);
     }
 

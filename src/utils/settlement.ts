@@ -51,9 +51,7 @@ export function computeSettlementAmounts(input: SettlementAmountsInput): Settlem
     discountableTotal - Math.floor((discountableTotal * discountRate) / 100);
   const receivableAmount = originalAmount - sessionCoveredAmount - discountAmount;
   const actualAmount = receivableAmount + adjustAmount;
-  const commissionableAmount =
-    (baseItem.commissionable && !baseItem.paidBySessionCard ? baseItem.price : 0) +
-    sumFlaggedPrices(addons, 'commissionable');
+  const commissionableAmount = actualAmount + sessionCoveredAmount;
   return { originalAmount, discountAmount, receivableAmount, adjustAmount, actualAmount, commissionableAmount, sessionCoveredAmount };
 }
 

@@ -8,6 +8,26 @@ const { getGlobalCommissionConfig } = require('./_shared/commissionConfig');
 
 const VALID_TYPES = ['manual', 'card_open', 'card_renew'];
 
+/**
+ * 分页拉取集合内符合条件的全部记录（wx-server-sdk 单次 get 默认上限 100 条）
+ * @param {string} name
+ * @param {Record<string, unknown>} where
+ * @returns {Promise<Record<string, unknown>[]>}
+ */
+async function fetchAllRecords(name, where) {
+  const pageSize = 1000;
+  let all = [];
+  let skip = 0;
+  for (;;) {
+    const { data } = await db.collection(name).where(where).skip(skip).limit(pageSize).get();
+    all = all.concat(data || []);
+    if (!data || data.length < pageSize) {
+      return all;
+    }
+    skip += pageSize;
+  }
+}
+
 function resolveRate(type, config) {
   if (type === 'card_open') {
     return config.cardOpenRate;
@@ -43,12 +63,12 @@ exports.main = async (event = {}) => {
 
     const start = new Date(startDate);
     const end = new Date(endDate);
+    const endExclusive = new Date(end.getTime() + 24 * 60 * 60 * 1000);
 
-    const { data: records } = await db.collection('commission_records')
-      .where({
-        createdAt: _.gte(start).and(_.lte(end)),
-      })
-      .get();
+    const records = await fetchAllRecords('commission_records', _.or([
+      { serviceTime: _.gte(start).and(_.lt(endExclusive)) },
+      { serviceTime: _.exists(false), createdAt: _.gte(start).and(_.lt(endExclusive)) },
+    ]));
 
     const { data: technicians } = await db.collection('technicians').get();
     const techMap = new Map(technicians.map((t) => [t._id, t.name]));

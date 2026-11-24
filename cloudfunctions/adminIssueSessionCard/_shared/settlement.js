@@ -2,13 +2,12 @@
 
 const { db, _ } = require('./db');
 const { AdminError, AdminErrorCode } = require('./errors');
+const { getGlobalCommissionConfig } = require('./commissionConfig');
 
 /** 合法支付方式枚举（含美团） */
 const VALID_PAYMENT_TYPES = ['member_card', 'cash', 'meituan', 'wechat', 'alipay', 'douyin', 'other'];
 /** 支付明细最大组数 */
 const MAX_PAYMENT_GROUPS = 3;
-/** 默认技师提成比例（%） */
-const DEFAULT_COMMISSION_RATE = 30;
 
 /**
  * 校验支付明细：1-3 组、类型合法且不重复、金额为正整数
@@ -187,33 +186,37 @@ function resolveCustomAddons(customAddons) {
 
 /**
  * 服务端金额重算（不信任前端合计）
+ * 次卡覆盖项目（paidBySessionCard）不计入应收、不参与折扣，按项目原价计入实际收入提成基数
  * @param {{ baseItem: object, addons: Array, customAddons: Array, discountRate: number, adjustAmount: number }} params
- * @returns {{ originalAmount: number, discountAmount: number, receivableAmount: number, actualAmount: number, commissionableAmount: number }}
+ * @returns {{ originalAmount: number, discountAmount: number, receivableAmount: number, actualAmount: number, commissionableAmount: number, sessionCoveredAmount: number }}
  */
 function computeAmounts({ baseItem, addons, customAddons, discountRate, adjustAmount }) {
+  const isCovered = (item) => item.paidBySessionCard === true;
   const addonTotal = addons.reduce((sum, item) => sum + item.price, 0);
   const customTotal = customAddons.reduce((sum, item) => sum + item.price, 0);
   const originalAmount = baseItem.price + addonTotal + customTotal;
+  const sessionCoveredAmount =
+    (isCovered(baseItem) ? baseItem.price : 0) +
+    addons.filter(isCovered).reduce((sum, item) => sum + item.price, 0);
   const discountableTotal =
-    (baseItem.discountable ? baseItem.price : 0) +
-    addons.filter((item) => item.discountable).reduce((sum, item) => sum + item.price, 0);
+    (baseItem.discountable && !isCovered(baseItem) ? baseItem.price : 0) +
+    addons.filter((item) => item.discountable && !isCovered(item)).reduce((sum, item) => sum + item.price, 0);
   const discountAmount = discountableTotal - Math.floor((discountableTotal * discountRate) / 100);
-  const receivableAmount = originalAmount - discountAmount;
+  const receivableAmount = originalAmount - sessionCoveredAmount - discountAmount;
   const actualAmount = receivableAmount + adjustAmount;
-  const commissionableAmount =
-    (baseItem.commissionable ? baseItem.price : 0) +
-    addons.filter((item) => item.commissionable).reduce((sum, item) => sum + item.price, 0);
-  return { originalAmount, discountAmount, receivableAmount, actualAmount, commissionableAmount };
+  const commissionableAmount = actualAmount + sessionCoveredAmount;
+  return { originalAmount, discountAmount, receivableAmount, actualAmount, commissionableAmount, sessionCoveredAmount };
 }
 
 /**
- * 会员卡支付扣款：校验余额并扣减
+ * 会员卡支付扣款：校验余额并扣减，返回扣款信息供调用方写流水
  * @param {{ memberDoc: object | null, paymentDetails: Array, now: Date }} params
+ * @returns {Promise<{ cardId: string, amount: number, balanceAfter: number } | null>}
  */
 async function deductMemberCardPayments({ memberDoc, paymentDetails, now }) {
   const cardPayment = paymentDetails.find((d) => d.paymentType === 'member_card');
   if (!cardPayment) {
-    return;
+    return null;
   }
   if (!memberDoc) {
     throw new AdminError(AdminErrorCode.VALIDATION_ERROR, '散客不可使用会员卡支付');
@@ -233,20 +236,54 @@ async function deductMemberCardPayments({ memberDoc, paymentDetails, now }) {
   await db.collection('member_cards').doc(cardDoc._id).update({
     data: { balance: _.inc(-cardPayment.amount), updatedAt: now },
   });
+  return { cardId: cardDoc._id, amount: cardPayment.amount, balanceAfter: currentBalance - cardPayment.amount };
 }
 
 /**
- * 查询技师提成比例
- * @param {string} technicianId
+ * 加载并校验次卡可核销：归属、状态、有效期、剩余次数、适用大类与基础项目覆盖
+ * @param {{ sessionCardId: string, memberId: string, categoryId: string, baseItem: object }} params
+ * @returns {Promise<object>} 次卡文档
+ */
+async function loadAndValidateSessionCard({ sessionCardId, memberId, categoryId, baseItem }) {
+  let card = null;
+  try {
+    const res = await db.collection('member_session_cards').doc(sessionCardId).get();
+    card = res.data;
+  } catch (_e) {
+    card = null;
+  }
+  if (!card || !card._id) {
+    throw new AdminError(AdminErrorCode.NOT_FOUND, '次卡不存在');
+  }
+  if (card.memberId !== memberId) {
+    throw new AdminError(AdminErrorCode.VALIDATION_ERROR, '次卡不属于该会员');
+  }
+  if (card.status !== 'active') {
+    throw new AdminError(AdminErrorCode.VALIDATION_ERROR, '次卡状态不可核销');
+  }
+  if (card.expiresAt && new Date(card.expiresAt) <= new Date()) {
+    throw new AdminError(AdminErrorCode.VALIDATION_ERROR, '次卡已过期');
+  }
+  if ((Number(card.remainingSessions) || 0) <= 0) {
+    throw new AdminError(AdminErrorCode.VALIDATION_ERROR, '次卡次数已用完');
+  }
+  const snapshot = card.snapshot || {};
+  if (snapshot.categoryId !== categoryId) {
+    throw new AdminError(AdminErrorCode.VALIDATION_ERROR, '该次卡不适用于当前服务大类');
+  }
+  if (snapshot.baseItemScope === 'selected' && !(snapshot.baseItemIds || []).includes(baseItem.itemId)) {
+    throw new AdminError(AdminErrorCode.VALIDATION_ERROR, '该次卡不适用于当前项目');
+  }
+  return card;
+}
+
+/**
+ * 查询全局手工提成比例
  * @returns {Promise<number>}
  */
-async function getCommissionRate(technicianId) {
-  const { data: configList } = await db
-    .collection('technician_commission_config')
-    .where({ technicianId })
-    .limit(1)
-    .get();
-  return (configList && configList[0] && Number(configList[0].commissionRate)) || DEFAULT_COMMISSION_RATE;
+async function getManualCommissionRate() {
+  const config = await getGlobalCommissionConfig();
+  return config.manualRate;
 }
 
 /**
@@ -318,13 +355,33 @@ async function executeSettlement({ event, adminInfo }) {
     }
     appointment = appointmentDoc;
   }
-  const paymentTotal = validatePaymentDetails(event.paymentDetails);
+  const paymentTotal =
+    String(event.sessionCardId || '').trim() &&
+    (!Array.isArray(event.paymentDetails) || event.paymentDetails.length === 0)
+      ? 0
+      : validatePaymentDetails(event.paymentDetails);
   const { category, template } = await loadCategoryTemplate(categoryId);
   const baseItem = resolveBaseItem(template, event);
   const addons = resolveAddons(template, event.addons);
   const customAddons = resolveCustomAddons(event.customAddons);
   const { memberDoc, discountRate } = await getMemberBenefit(memberId);
+  const sessionCardId = String(event.sessionCardId || '').trim();
+  let sessionCard = null;
+  if (sessionCardId) {
+    if (!memberDoc) {
+      throw new AdminError(AdminErrorCode.VALIDATION_ERROR, '散客不可使用次卡核销');
+    }
+    sessionCard = await loadAndValidateSessionCard({ sessionCardId, memberId, categoryId, baseItem });
+    baseItem.paidBySessionCard = true;
+    const coveredAddonIds = new Set((sessionCard.snapshot && sessionCard.snapshot.coveredAddonIds) || []);
+    for (const addon of addons) {
+      if (coveredAddonIds.has(addon.itemId)) {
+        addon.paidBySessionCard = true;
+      }
+    }
+  }
   const amounts = computeAmounts({ baseItem, addons, customAddons, discountRate, adjustAmount });
+  const sessionRecognizedAmount = sessionCard ? Number(sessionCard.snapshot && sessionCard.snapshot.sessionValue) || 0 : 0;
   if (amounts.actualAmount < 0) {
     throw new AdminError(AdminErrorCode.VALIDATION_ERROR, '实收金额不能小于 0');
   }
@@ -332,7 +389,7 @@ async function executeSettlement({ event, adminInfo }) {
     throw new AdminError(AdminErrorCode.VALIDATION_ERROR, '支付总额必须等于实收金额');
   }
   const now = new Date();
-  await deductMemberCardPayments({ memberDoc, paymentDetails: event.paymentDetails, now });
+  const cardDeduction = await deductMemberCardPayments({ memberDoc, paymentDetails: event.paymentDetails, now });
   const pointsEarned = amounts.actualAmount === 0 ? 0 : Math.floor(amounts.actualAmount / 10);
   const consumptionData = {
     memberId: memberId || '',
@@ -356,17 +413,33 @@ async function executeSettlement({ event, adminInfo }) {
     serviceTime,
     serviceCategory: category.name || '',
     serviceName: baseItem.name,
-    paymentDetails: event.paymentDetails.map((d) => ({
+    paymentDetails: (event.paymentDetails || []).map((d) => ({
       paymentType: d.paymentType,
       amount: d.amount,
       createdAt: now,
     })),
     note,
     source: appointmentId ? 'appointment' : 'settlement',
+    sessionCoveredAmount: amounts.sessionCoveredAmount,
+    sessionRecognizedAmount,
     createdAt: now,
     updatedAt: now,
   };
   const addResult = await db.collection('consumption_records').add({ data: consumptionData });
+  if (cardDeduction) {
+    await db.collection('card_consumption_records').add({
+      data: {
+        cardId: cardDeduction.cardId,
+        memberId: memberDoc.memberId,
+        amount: cardDeduction.amount,
+        balanceAfter: cardDeduction.balanceAfter,
+        item: baseItem.name,
+        note: note || '',
+        consumptionId: addResult._id,
+        createdAt: now,
+      },
+    });
+  }
   if (memberDoc) {
     const memberUpdate = {
       totalConsumption: _.inc(amounts.actualAmount),
@@ -392,10 +465,11 @@ async function executeSettlement({ event, adminInfo }) {
       },
     });
   }
-  const commissionRate = await getCommissionRate(technicianId);
+  const commissionRate = await getManualCommissionRate();
   const commissionAmount = Math.floor((amounts.commissionableAmount * commissionRate) / 100);
   await db.collection('commission_records').add({
     data: {
+      type: 'manual',
       technicianId,
       technicianName: technicianDoc.name || '',
       appointmentId: appointmentId || '',
@@ -403,9 +477,59 @@ async function executeSettlement({ event, adminInfo }) {
       serviceAmount: amounts.commissionableAmount,
       commissionRate,
       commissionAmount,
+      serviceTime,
       createdAt: now,
     },
   });
+  let sessionCardRedemptionId = '';
+  if (sessionCard) {
+    const remaining = (Number(sessionCard.remainingSessions) || 0) - 1;
+    await db.collection('member_session_cards').doc(sessionCard._id).update({
+      data: {
+        remainingSessions: remaining,
+        status: remaining <= 0 ? 'depleted' : 'active',
+        updatedAt: now,
+      },
+    });
+    const redemptionRes = await db.collection('session_card_redemptions').add({
+      data: {
+        cardId: sessionCard._id,
+        memberId,
+        consumptionId: addResult._id,
+        categoryId,
+        categoryName: category.name || '',
+        baseItemId: baseItem.itemId,
+        baseItemName: baseItem.name,
+        coveredAmount: amounts.sessionCoveredAmount,
+        recognizedAmount: sessionRecognizedAmount,
+        technicianId,
+        technicianName: technicianDoc.name || '',
+        operatorAdminId: adminInfo.adminId,
+        createdAt: now,
+      },
+    });
+    sessionCardRedemptionId = redemptionRes._id;
+    await db.collection('consumption_records').doc(addResult._id).update({
+      data: { sessionCardRedemptionId },
+    });
+    const sessionPoints = Math.floor(sessionRecognizedAmount / 10);
+    if (memberDoc && sessionPoints > 0) {
+      await db.collection('members').doc(memberDoc._id).update({
+        data: { points: _.inc(sessionPoints), updatedAt: now },
+      });
+      await db.collection('points_records').add({
+        data: {
+          memberId,
+          consumptionId: addResult._id,
+          appointmentId: appointmentId || '',
+          type: 'earn',
+          amount: sessionPoints,
+          reason: 'session_card_redemption',
+          createdAt: now,
+        },
+      });
+    }
+  }
   if (appointment) {
     await db.collection('appointments').doc(appointmentId).update({
       data: {
@@ -427,6 +551,7 @@ async function executeSettlement({ event, adminInfo }) {
       action: appointmentId ? 'complete_service' : 'create_settlement',
       targetType: 'consumption_record',
       targetId: addResult._id,
+      targetName: memberDoc ? memberDoc.nickName || memberDoc.name || '' : '',
       detail: `结算 ${amounts.actualAmount} 分（原价 ${amounts.originalAmount} 分，折扣 ${amounts.discountAmount} 分），分类 ${category.name || ''}，基础项目 ${baseItem.name}，技师 ${technicianDoc.name || ''}，积分 +${pointsEarned}，提成 ${commissionAmount} 分（${commissionRate}%）${adjustLog}`,
       createdAt: now,
     },
@@ -440,6 +565,9 @@ async function executeSettlement({ event, adminInfo }) {
     amount: amounts.actualAmount,
     pointsEarned,
     commissionAmount,
+    sessionCardRedemptionId,
+    sessionCoveredAmount: amounts.sessionCoveredAmount,
+    sessionRecognizedAmount,
   };
 }
 

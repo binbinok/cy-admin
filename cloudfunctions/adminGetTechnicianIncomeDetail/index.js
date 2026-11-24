@@ -91,16 +91,32 @@ exports.main = async (event = {}) => {
         serviceTime: item.serviceTime,
         serviceName: item.serviceName,
         paymentDetails: item.paymentDetails || [],
-        totalAmount: item.amount || 0,
+        totalAmount: (item.amount || 0) + (item.sessionCoveredAmount || 0),
+        sessionCoveredAmount: item.sessionCoveredAmount || 0,
         memberName: member ? (member.nickName || member.name || '未知会员') : '散客',
         note: item.note || '',
       };
     });
 
-    // 计算汇总数据
+    // 汇总按全量口径：订单数取总数，收入按全区间分页求和（分页 list 只含当前页）
+    const pageSizeLimit = 1000;
+    let sumTotal = 0;
+    let sumSkip = 0;
+    for (;;) {
+      const { data: sumList } = await db.collection('consumption_records')
+        .where(_.and(conditions))
+        .skip(sumSkip)
+        .limit(pageSizeLimit)
+        .get();
+      sumTotal += (sumList || []).reduce((sum, item) => sum + (item.amount || 0) + (item.sessionCoveredAmount || 0), 0);
+      if (!sumList || sumList.length < pageSizeLimit) {
+        break;
+      }
+      sumSkip += pageSizeLimit;
+    }
     const summary = {
-      totalAmount: list.reduce((sum, item) => sum + (item.amount || 0), 0),
-      orderCount: list.length,
+      totalAmount: sumTotal,
+      orderCount: total,
     };
 
     return success({
