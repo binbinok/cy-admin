@@ -647,7 +647,7 @@ export default function AppointmentListPage() {
               step={5}
               precision={0}
               style={{ width: '100%' }}
-              addonAfter="分钟"
+              suffix="分钟"
             />
           </Form.Item>
           <Form.Item

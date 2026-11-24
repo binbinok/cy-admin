@@ -498,7 +498,7 @@ export default function IncomeEntryModal({
               label="基础项目金额（元）"
               rules={[{ required: true, message: '请输入基础项目金额' }]}
             >
-              <InputNumber min={0} step={0.01} precision={2} style={{ width: '100%' }} addonAfter="元" />
+              <InputNumber min={0} step={0.01} precision={2} style={{ width: '100%' }} suffix="元" />
             </Form.Item>
           </Col>
         </Row>
@@ -526,7 +526,7 @@ export default function IncomeEntryModal({
               label={`${addonItem.name}金额（元）`}
               initialValue={addonItem.defaultPrice / 100}
             >
-              <InputNumber min={0} step={0.01} precision={2} style={{ width: 240 }} addonAfter="元" />
+              <InputNumber min={0} step={0.01} precision={2} style={{ width: 240 }} suffix="元" />
             </Form.Item>
           );
         })}
@@ -547,7 +547,7 @@ export default function IncomeEntryModal({
                     rules={[{ required: true, message: '金额必填' }]}
                     style={{ width: 160, marginBottom: 0 }}
                   >
-                    <InputNumber min={0.01} step={0.01} precision={2} style={{ width: '100%' }} addonAfter="元" />
+                    <InputNumber min={0.01} step={0.01} precision={2} style={{ width: '100%' }} suffix="元" />
                   </Form.Item>
                   <Form.Item
                     name={[field.name, 'reason']}
@@ -607,7 +607,7 @@ export default function IncomeEntryModal({
         <Row gutter={16}>
           <Col span={8}>
             <Form.Item name="adjustAmount" label="人工改价（元，可负）">
-              <InputNumber step={0.01} precision={2} style={{ width: '100%' }} addonAfter="元" placeholder="默认 0" />
+              <InputNumber step={0.01} precision={2} style={{ width: '100%' }} suffix="元" placeholder="默认 0" />
             </Form.Item>
           </Col>
           <Col span={16}>
@@ -691,7 +691,6 @@ export default function IncomeEntryModal({
                 {fields.map((field, index) => (
                   <div key={field.key} style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
                     <Form.Item
-                      {...field}
                       name={[field.name, 'paymentType']}
                       rules={[{ required: true, message: '请选择金额类型' }]}
                       style={{ flex: 1, marginBottom: 0 }}
@@ -709,7 +708,6 @@ export default function IncomeEntryModal({
                       />
                     </Form.Item>
                     <Form.Item
-                      {...field}
                       name={[field.name, 'amount']}
                       rules={[{ required: true, message: '请输入金额' }]}
                       style={{ flex: 1, marginBottom: 0 }}
@@ -720,7 +718,7 @@ export default function IncomeEntryModal({
                         precision={2}
                         style={{ width: '100%' }}
                         placeholder="金额（元）"
-                        addonAfter="元"
+                        suffix="元"
                       />
                     </Form.Item>
                     {fields.length > 1 && (

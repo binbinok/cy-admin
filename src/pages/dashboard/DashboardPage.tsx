@@ -62,20 +62,22 @@ const appointmentColumns: ColumnsType<Appointment> = [
   },
   {
     title: '服务项目',
-    dataIndex: 'serviceId',
-    key: 'serviceId',
+    key: 'service',
     width: 120,
+    render: (_: unknown, record: Appointment) =>
+      record.categoryName ?? record.serviceName ?? record.serviceId ?? '-',
   },
   {
     title: '技师',
-    dataIndex: 'technicianId',
-    key: 'technicianId',
+    key: 'technician',
     width: 100,
+    render: (_: unknown, record: Appointment) =>
+      record.technicianName ?? record.technicianId,
   },
   {
     title: '备注',
-    dataIndex: 'remark',
-    key: 'remark',
+    dataIndex: 'note',
+    key: 'note',
     ellipsis: true,
     render: (text: string | undefined) => text || '-',
   },

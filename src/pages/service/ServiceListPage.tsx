@@ -315,7 +315,7 @@ export default function ServiceListPage() {
             rules={[{ required: true, message: '价格必填' }]}
             style={{ flex: 1, marginBottom: 0 }}
           >
-            <InputNumber min={0} step={0.01} precision={2} style={{ width: '100%' }} addonAfter="元" />
+            <InputNumber min={0} step={0.01} precision={2} style={{ width: '100%' }} suffix="元" />
           </Form.Item>
           <Form.Item
             name={[field.name, 'discountable']}
@@ -413,7 +413,7 @@ export default function ServiceListPage() {
               },
             ]}
           >
-            <InputNumber min={1} step={5} precision={0} style={{ width: '100%' }} addonAfter="分钟" />
+            <InputNumber min={1} step={5} precision={0} style={{ width: '100%' }} suffix="分钟" />
           </Form.Item>
           <Form.Item label="基础项目（款式，结算时必选 1 个）" required>
             <Form.List name="baseItems">

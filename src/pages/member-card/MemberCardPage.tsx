@@ -236,7 +236,7 @@ export default function MemberCardPage() {
               },
             ]}
           >
-            <InputNumber min={1} max={99} precision={0} style={{ width: '100%' }} addonAfter="%" />
+            <InputNumber min={1} max={99} precision={0} style={{ width: '100%' }} suffix="%" />
           </Form.Item>
           <Form.Item
             label="最低充值门槛（元）"
@@ -253,7 +253,7 @@ export default function MemberCardPage() {
               },
             ]}
           >
-            <InputNumber min={0} step={0.01} precision={2} style={{ width: '100%' }} addonAfter="元" />
+            <InputNumber min={0} step={0.01} precision={2} style={{ width: '100%' }} suffix="元" />
           </Form.Item>
         </Form>
       </Modal>

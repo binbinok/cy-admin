@@ -22,21 +22,19 @@ export default function LoginPage() {
     setSubmitting(true);
     try {
       const res = await adminLogin(values.username, values.password);
-      console.log('res ', res);
       if (res.success && res.data) {
         login(res.data);
         const target =
           res.data.adminInfo?.role === 'super_admin' ? '/' : '/appointments';
         navigate(target, { replace: true });
       } else {
-        console.log(1)
         message.error('用户名或密码错误');
       }
     } catch (err: unknown) {
       if (isBusinessError(err) && err.code === 'ACCOUNT_LOCKED') {
         message.error(err.message);
       } else {
-        console.log(2, err)
+        console.error('登录失败:', err);
         message.error('用户名或密码错误');
       }
     } finally {

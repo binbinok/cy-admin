@@ -4,42 +4,7 @@ const { verifyAuth } = require('./_shared/auth');
 const { success, error } = require('./_shared/response');
 const { AdminErrorCode } = require('./_shared/errors');
 const { db } = require('./_shared/db');
-const crypto = require('crypto');
-
-/** 编号字符集：去除易混淆字符 0/O/1/I/L，共 32 个 */
-const ID_CHARSET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
-const ID_LENGTH = 6;
-const ID_MAX_RETRY = 5;
-
-/**
- * 生成 6 位随机会员编号（字母+数字）
- * @returns {string}
- */
-function generateMemberId() {
-  let id = '';
-  for (let i = 0; i < ID_LENGTH; i += 1) {
-    id += ID_CHARSET[crypto.randomInt(ID_CHARSET.length)];
-  }
-  return id;
-}
-
-/**
- * 生成全局唯一会员编号：查重冲突时自动重试
- * @returns {Promise<string>}
- */
-async function generateUniqueMemberId() {
-  for (let attempt = 0; attempt < ID_MAX_RETRY; attempt += 1) {
-    const candidate = generateMemberId();
-    const { total } = await db
-      .collection('members')
-      .where({ memberId: candidate })
-      .count();
-    if (total === 0) {
-      return candidate;
-    }
-  }
-  throw new Error('会员编号生成冲突，请重试');
-}
+const { nextSeq } = require('./_shared/counter');
 
 /**
  * 创建会员
@@ -102,7 +67,8 @@ exports.main = async (event = {}) => {
     }
 
     const now = new Date();
-    const memberId = await generateUniqueMemberId();
+    const seq = await nextSeq('member');
+    const memberId = String(seq);
 
     const memberData = {
       memberId,

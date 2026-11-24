@@ -75,10 +75,24 @@ exports.main = async (event = {}) => {
 
     // 扣减余额
     const balanceAfter = currentBalance - discountedAmount;
+    const now = new Date();
     await db.collection('member_cards').doc(cardId).update({
       data: {
         balance: _.inc(-discountedAmount),
-        updatedAt: new Date(),
+        updatedAt: now,
+      },
+    });
+
+    await db.collection('card_consumption_records').add({
+      data: {
+        cardId,
+        memberId: card.memberId || '',
+        amount: discountedAmount,
+        balanceAfter,
+        item: String(event.item || '').trim() || '手动扣款',
+        note: String(event.note || '').trim(),
+        consumptionId: '',
+        createdAt: now,
       },
     });
 

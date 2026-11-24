@@ -205,7 +205,7 @@ export default function CommissionPage() {
                 min={MIN_COMMISSION_RATE}
                 max={MAX_COMMISSION_RATE}
                 precision={0}
-                addonAfter="%"
+                suffix="%"
               />
             </Form.Item>
             <Form.Item label="开卡提成" name="cardOpenRate" rules={rateRules}>
@@ -213,7 +213,7 @@ export default function CommissionPage() {
                 min={MIN_COMMISSION_RATE}
                 max={MAX_COMMISSION_RATE}
                 precision={0}
-                addonAfter="%"
+                suffix="%"
               />
             </Form.Item>
             <Form.Item label="续卡提成" name="cardRenewRate" rules={rateRules}>
@@ -221,7 +221,7 @@ export default function CommissionPage() {
                 min={MIN_COMMISSION_RATE}
                 max={MAX_COMMISSION_RATE}
                 precision={0}
-                addonAfter="%"
+                suffix="%"
               />
             </Form.Item>
             <Form.Item>

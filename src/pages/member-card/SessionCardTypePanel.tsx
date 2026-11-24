@@ -303,7 +303,7 @@ export default function SessionCardTypePanel() {
               rules={[{ required: true, message: '请输入售价' }]}
               style={{ flex: 1 }}
             >
-              <InputNumber min={0.01} precision={2} style={{ width: '100%' }} addonAfter="元" />
+              <InputNumber min={0.01} precision={2} style={{ width: '100%' }} suffix="元" />
             </Form.Item>
             <Form.Item
               label="总次数"
@@ -311,7 +311,7 @@ export default function SessionCardTypePanel() {
               rules={[{ required: true, message: '请输入总次数' }]}
               style={{ flex: 1 }}
             >
-              <InputNumber min={1} precision={0} style={{ width: '100%' }} addonAfter="次" />
+              <InputNumber min={1} precision={0} style={{ width: '100%' }} suffix="次" />
             </Form.Item>
           </Space>
           <Form.Item
@@ -375,7 +375,7 @@ export default function SessionCardTypePanel() {
               name="validityDays"
               rules={[{ required: true, message: '请输入有效天数' }]}
             >
-              <InputNumber min={1} precision={0} style={{ width: '100%' }} addonAfter="天" />
+              <InputNumber min={1} precision={0} style={{ width: '100%' }} suffix="天" />
             </Form.Item>
           )}
           {watchValidityType === 'fixed_date' && (

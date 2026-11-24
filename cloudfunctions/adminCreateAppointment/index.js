@@ -4,42 +4,7 @@ const { verifyAuth } = require('./_shared/auth');
 const { success, error } = require('./_shared/response');
 const { AdminErrorCode } = require('./_shared/errors');
 const { db, _ } = require('./_shared/db');
-const crypto = require('crypto');
-
-/** 编号字符集：去除易混淆字符 0/O/1/I/L，共 32 个 */
-const ID_CHARSET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
-const ID_LENGTH = 6;
-const ID_MAX_RETRY = 5;
-
-/**
- * 生成 6 位随机预约编号（字母+数字）
- * @returns {string}
- */
-function generateAppointmentId() {
-  let id = '';
-  for (let i = 0; i < ID_LENGTH; i += 1) {
-    id += ID_CHARSET[crypto.randomInt(ID_CHARSET.length)];
-  }
-  return id;
-}
-
-/**
- * 生成全局唯一预约编号：查重冲突时自动重试
- * @returns {Promise<string>}
- */
-async function generateUniqueAppointmentId() {
-  for (let attempt = 0; attempt < ID_MAX_RETRY; attempt += 1) {
-    const candidate = generateAppointmentId();
-    const { total } = await db
-      .collection('appointments')
-      .where({ appointmentId: candidate })
-      .count();
-    if (total === 0) {
-      return candidate;
-    }
-  }
-  throw new Error('预约编号生成冲突，请重试');
-}
+const { beijingDateKey, nextSeq, formatSeq } = require('./_shared/counter');
 
 /**
  * 解析时间字符串为分钟数
@@ -202,7 +167,8 @@ exports.main = async (event = {}) => {
 
     // 6. 创建预约记录（仅排班信息：顾客 / 技师 / 服务大类 / 日期时间 / 时长 / 备注）
     const now = new Date();
-    const appointmentId = await generateUniqueAppointmentId();
+    const seq = await nextSeq(`appointment_${beijingDateKey()}`);
+    const appointmentId = formatSeq(seq);
 
     const appointmentData = {
       appointmentId,
